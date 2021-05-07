@@ -20,12 +20,10 @@ def packmol_gen_parallelipiped_random_packing(nlayers, oriented_unit_cell, scale
 
 	#First, get lattice matrix of oriented_unit_cell. Extract the a, b, c vectors.
 	
- 
 	lattice_matrix = oriented_unit_cell.lattice.matrix
 
 	unit_a_vec = lattice_matrix[0]
 	unit_b_vec = lattice_matrix[1]
-
 	unit_c_vec = lattice_matrix[2]
 
 	#Get the scaled c vector.
@@ -33,7 +31,6 @@ def packmol_gen_parallelipiped_random_packing(nlayers, oriented_unit_cell, scale
 
 
 	#Next, get the equations for the planes. Will be represented as list [i, j, k, l], where ix + jy + kz = l
-	#Check https://numpy.org/doc/stable/reference/generated/numpy.cross.html to get an idea of how to clean this code up & do it more efficiently.
 
         #Fundamentally we do three cross products: axb, cxa, and bxc.
         left_hand_side = np.array([unit_a_vec, unit_c_vec, unit_b_vec])
@@ -43,7 +40,6 @@ def packmol_gen_parallelipiped_random_packing(nlayers, oriented_unit_cell, scale
         basis_planes = np.cross(left_hand_side, right_hand_side)
 
         #Of the six boundary planes, 3 of them intersect the origin. Therefore their l values (calculated via dot product) will be zero. We need to calculate the dot products of the other 3 planes.
-        
        
         #We additionally multiply by -1 in order to orient the plane normals to point into the box.
 
@@ -52,18 +48,12 @@ def packmol_gen_parallelipiped_random_packing(nlayers, oriented_unit_cell, scale
         #Put it all together.
         boundary_planes = np.zeros((6, 4))
 
-        
         boundary_planes[:3, :3] = basis_planes
         boundary_planes[3:, :3] = -1 * basis_planes
         boundary_planes[3:, 3] = nonzero_dot_products
 
-        ####################
     
-	
-
-
 	#Now, we must write the lines for the packmol file to read.
-
 
 	lines = []
 
@@ -120,7 +110,8 @@ def packmol_gen_parallelipiped_random_packing(nlayers, oriented_unit_cell, scale
 
 	#Write the file as output.
 	packmol_filename = "packmol" + "".join(formula.split()) + ".input"
-	with open(packmol_filename, "w") as f:
+	
+        with open(packmol_filename, "w") as f:
 		f.writelines(lines)
 
 	
