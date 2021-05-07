@@ -35,6 +35,26 @@ def packmol_gen_parallelipiped_random_packing(nlayers, oriented_unit_cell, scale
 	#Next, get the equations for the planes. Will be represented as list [i, j, k, l], where ix + jy + kz = l
 	#Check https://numpy.org/doc/stable/reference/generated/numpy.cross.html to get an idea of how to clean this code up & do it more efficiently.
 
+    ######THE BETTER WAY (MAYBE)######
+        #Fundamentally we do three cross products: axb, cxa, and bxc.
+        left_hand_side = np.array([unit_a_vec, unit_c_vec, unit_b_vec])
+        right_hand_side = np.array([unit_b_vec, unit_a_vec, unit_c_vec])
+        
+        basis_planes = np.cross(left_hand_side, right_hand_side) #Gives planes ab, ac, bc
+
+        nonzero_dot_products = -1 * np.dot(basis_planes, np.array([scaled_c_vec, unit_b_vec, unit_a_vec])) #Multiply by -1 to account for eventual flipping of normals?
+
+        #Put it all together.
+        boundary_planes = np.zeros((6, 4))
+
+        
+        boundary_planes[:3, :3] = basis_planes
+        boundary_planes[3:, :3] = -1 * basis_planes
+        boundary_planes[3:, 3] = nonzero_dot_products
+
+        print(boundary_planes)
+        ####################
+    
 	plane_ab1 = np.zeros(4) #The plane spanned by vectors a & b. Start with [0,0,0,0]
 	
 	#<ijk> is vector normal to plane. Get i,j,k from cross product.We cross a x b such that vector extends along c axis.
@@ -74,7 +94,7 @@ def packmol_gen_parallelipiped_random_packing(nlayers, oriented_unit_cell, scale
 	
 	planes = [plane_ab1, plane_ab2, plane_ac2, plane_ac1, plane_bc1, plane_bc2]
 
-
+        print(planes)
 
 
 
