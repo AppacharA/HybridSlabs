@@ -35,15 +35,20 @@ def packmol_gen_parallelipiped_random_packing(nlayers, oriented_unit_cell, scale
 	#Next, get the equations for the planes. Will be represented as list [i, j, k, l], where ix + jy + kz = l
 	#Check https://numpy.org/doc/stable/reference/generated/numpy.cross.html to get an idea of how to clean this code up & do it more efficiently.
 
-    ######THE BETTER WAY (MAYBE)######
         #Fundamentally we do three cross products: axb, cxa, and bxc.
         left_hand_side = np.array([unit_a_vec, unit_c_vec, unit_b_vec])
         right_hand_side = np.array([unit_b_vec, unit_a_vec, unit_c_vec])
         
-        basis_planes = np.cross(left_hand_side, right_hand_side) #Gives planes ab, ac, bc
+        #This gives planes spanned, respectively, by a&b, a&c, b&c. All three plane normals point into the box. 
+        basis_planes = np.cross(left_hand_side, right_hand_side)
 
-        nonzero_dot_products = -1 * (basis_planes * np.array([scaled_c_vec, unit_b_vec, unit_a_vec])).sum(axis=1) #Multiply by -1 to account for eventual flipping of normals?
+        #Of the six boundary planes, 3 of them intersect the origin. Therefore their l values (calculated via dot product) will be zero. We need to calculate the dot products of the other 3 planes.
+        
+       
+        #We additionally multiply by -1 in order to orient the plane normals to point into the box.
 
+        nonzero_dot_products = -1 * (basis_planes * np.array([scaled_c_vec, unit_b_vec, unit_a_vec])).sum(axis=1)
+        
         #Put it all together.
         boundary_planes = np.zeros((6, 4))
 
@@ -52,50 +57,9 @@ def packmol_gen_parallelipiped_random_packing(nlayers, oriented_unit_cell, scale
         boundary_planes[3:, :3] = -1 * basis_planes
         boundary_planes[3:, 3] = nonzero_dot_products
 
-        print(boundary_planes)
         ####################
     
-	plane_ab1 = np.zeros(4) #The plane spanned by vectors a & b. Start with [0,0,0,0]
 	
-	#<ijk> is vector normal to plane. Get i,j,k from cross product.We cross a x b such that vector extends along c axis.
-	plane_ab1[:3] = np.cross(unit_a_vec, unit_b_vec)
-
-	#L is given by dot producting <ijk> with point in plane. AB1 contains point (0,0,0), so L is simply zero. No change is necessary.
-	 
-	
-	#Next, AB2
-	plane_ab2 = np.zeros(4)
-	
-	#AB2 is parallel to AB1. We flip the orientation such that AB2 'faces' AB1 (surface normals point to each other)
-	plane_ab2[:3] = -1 * plane_ab1[:3]
-
-	#AB2 contains point c given by scaled c vector from origin. 
-	plane_ab2[3] = np.dot(plane_ab2[:3], scaled_c_vec)
-
-
-	#Rinse and repeat for AC, BC
-
-	plane_ac1 = np.zeros(4)
-	plane_ac1[:3] = np.cross(unit_c_vec, unit_a_vec) #c x a, such that vector extends along b axis.
-
-	plane_ac2 = np.zeros(4)
-	plane_ac2[:3] = -1 * plane_ac1[:3]
-	plane_ac2[3] = np.dot(plane_ac2[:3], unit_b_vec)
-
-	plane_bc1 = np.zeros(4)
-	plane_bc1[:3] = np.cross(unit_b_vec, unit_c_vec) #b x c, such taht vector extends along a axis.
-
-	plane_bc2 = np.zeros(4)
-	plane_bc2[:3] = -1 * plane_bc1[:3] 
-	plane_bc2[3] = np.dot(plane_bc2[:3], unit_a_vec)
-
-
-	#Compile all planes into a list. 
-	
-	planes = [plane_ab1, plane_ab2, plane_ac2, plane_ac1, plane_bc1, plane_bc2]
-
-        print(planes)
-
 
 
 	#Now, we must write the lines for the packmol file to read.
@@ -139,7 +103,7 @@ def packmol_gen_parallelipiped_random_packing(nlayers, oriented_unit_cell, scale
 
 		#Pack into the desired region, defined by our 6 planes.. Units are PROBABLY in angstroms.
 
-		for plane in planes:
+		for plane in boundary_planes:
 			#Use list comprehension to convert plane into strings.
 			str_plane = [str(num) for num in plane]
 			
