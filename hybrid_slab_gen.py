@@ -54,14 +54,15 @@ def scale_amorphous_region(orig_slab, orig_oriented_unit_cell, n_amorph_layers, 
 		#unit_lattice_matrix = orig_slab_unit_cell.lattice.matrix
 		unit_lattice_matrix = orig_oriented_unit_cell.lattice.matrix
 		
-		unit_a_vector = unit_lattice_matrix[0]
+		#unit_a_vector = unit_lattice_matrix[0]
 
-		unit_b_vector = unit_lattice_matrix[1]
+		#unit_b_vector = unit_lattice_matrix[1]
 
+                #All of our transforms occur on the c axis, so we'll store the lengths of the c-vectors directly, to minimize function calls later.
 		unit_c_vector = unit_lattice_matrix[2]
-                unit_c_vector_len = np.linalg.norm(unit_c_vector) #Much of our transforms occur on the c axis, so we'll store the lengths of the c-vectors directly, to minimize function calls later.
-
-		#create new lattice vector that is equal to n-unit cells stacked together on c-axis.
+                unit_c_vector_len = np.linalg.norm(unit_c_vector) 
+                
+                #create new lattice vector that is equal to n-unit cells stacked together on c-axis.
 
 		nonvac_lattice_matrix = unit_lattice_matrix.copy()
 
@@ -70,10 +71,11 @@ def scale_amorphous_region(orig_slab, orig_oriented_unit_cell, n_amorph_layers, 
 		nonvac_c_vector = nonvac_lattice_matrix[2]
                 nonvac_c_vector_len = np.linalg.norm(nonvac_c_vector)
 	
-		#Next, we transplant Species coordinates from original slab to new structure. We do this to remove the vacuum. 
+		#Next, we modify the atomic coordinates from the original slab. 
 		
 		#Get original fractional coordinates and c-vector.
 		orig_frac_coords = orig_slab.frac_coords
+
 		orig_c_vector = orig_slab.lattice.matrix[2]
                 orig_c_vector_len = np.linalg.norm(orig_c_vector)
 	
@@ -86,7 +88,7 @@ def scale_amorphous_region(orig_slab, orig_oriented_unit_cell, n_amorph_layers, 
 
 			])
 
-		#Use above scaling matrix to reposition atoms. 
+		#Use above scaling matrix to reposition atoms.We reassign fractional coordinates based on length of a slab that doesn't have a vacuum. 
 		#nonvac_frac_coords = np.matmul(orig_frac_coords, scaling_matrix)
 		nonvac_frac_coords = np.matmul(orig_slab.frac_coords, scaling_matrix)	
 
@@ -99,8 +101,8 @@ def scale_amorphous_region(orig_slab, orig_oriented_unit_cell, n_amorph_layers, 
 		
 		
 		#Now we have a slab without a vacuum. We will now begin to apply the amorphization transformation.
-	
-
+	        #We must account for a volume change during amorphization, so there is a scaling process involved as well.
+                #Scaling only occurs along c-axis.
 
 	
 		#First, create the scaled lattice.
