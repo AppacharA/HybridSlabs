@@ -42,7 +42,7 @@ def packmol_gen_parallelipiped_random_packing(nlayers, oriented_unit_cell, scale
         
         basis_planes = np.cross(left_hand_side, right_hand_side) #Gives planes ab, ac, bc
 
-        nonzero_dot_products = -1 * np.dot(basis_planes, np.array([scaled_c_vec, unit_b_vec, unit_a_vec])) #Multiply by -1 to account for eventual flipping of normals?
+        nonzero_dot_products = -1 * (basis_planes * np.array([scaled_c_vec, unit_b_vec, unit_a_vec])).sum(axis=1) #Multiply by -1 to account for eventual flipping of normals?
 
         #Put it all together.
         boundary_planes = np.zeros((6, 4))
