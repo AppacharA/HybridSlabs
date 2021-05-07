@@ -59,34 +59,36 @@ def scale_amorphous_region(orig_slab, orig_oriented_unit_cell, n_amorph_layers, 
 		unit_b_vector = unit_lattice_matrix[1]
 
 		unit_c_vector = unit_lattice_matrix[2]
-
+                unit_c_vector_len = np.linalg.norm(unit_c_vector) #Much of our transforms occur on the c axis, so we'll store the lengths of the c-vectors directly, to minimize function calls later.
 
 		#create new lattice vector that is equal to n-unit cells stacked together on c-axis.
 
 		nonvac_lattice_matrix = unit_lattice_matrix.copy()
 
-		nonvac_lattice_matrix[2] = nlayers * unit_lattice_matrix[2]
+		nonvac_lattice_matrix[2] = nlayers * unit_c_vector
 
 		nonvac_c_vector = nonvac_lattice_matrix[2]
+                nonvac_c_vector_len = np.linalg.norm(nonvac_c_vector)
 	
 		#Next, we transplant Species coordinates from original slab to new structure. We do this to remove the vacuum. 
 		
 		#Get original fractional coordinates and c-vector.
 		orig_frac_coords = orig_slab.frac_coords
 		orig_c_vector = orig_slab.lattice.matrix[2]
+                orig_c_vector_len = np.linalg.norm(orig_c_vector)
 	
 
 		#Create scaling matrix.
 		scaling_matrix = np.array([
 			[1, 0, 0],
 			[0, 1, 0],
-			[0, 0, np.linalg.norm(orig_c_vector)/np.linalg.norm(nonvac_c_vector)]
+			[0, 0, (orig_c_vector_len/nonvac_c_vector_len)]
 
 			])
 
 		#Use above scaling matrix to reposition atoms. 
-		nonvac_frac_coords = np.matmul(orig_frac_coords, scaling_matrix)
-			
+		#nonvac_frac_coords = np.matmul(orig_frac_coords, scaling_matrix)
+		nonvac_frac_coords = np.matmul(orig_slab.frac_coords, scaling_matrix)	
 
 
 
@@ -106,21 +108,22 @@ def scale_amorphous_region(orig_slab, orig_oriented_unit_cell, n_amorph_layers, 
 
 
 		#Identify the amorphous and crystalline regions.
-		amorphous_region_length = n_amorph_layers * np.linalg.norm(unit_c_vector)
+		amorphous_region_length = n_amorph_layers * unit_c_vector_len
 
-		crystalline_region_length = np.linalg.norm(nonvac_c_vector) - amorphous_region_length
+		crystalline_region_length = nonvac_c_vector_len - amorphous_region_length
 
 		#Get length of crystal region in fractional coordinates.
-		frac_cryst_len = crystalline_region_length / np.linalg.norm(nonvac_c_vector)
+		frac_cryst_len = crystalline_region_length / nonvac_c_vector_len
 
 		
 		#Set length of C-vector in expanded lattice based on how much the amorphous layer is expanding. Keep for later.
-		total_slab_expansion_factor = 1 + (((scale_factor - 1) * amorphous_region_length) / np.linalg.norm(nonvac_c_vector))
+		total_slab_expansion_factor = 1 + (((scale_factor - 1) * amorphous_region_length) / nonvac_c_vector_len)
 
 
 		scaled_lattice_matrix[2] = scaled_lattice_matrix[2] * (total_slab_expansion_factor)
 
 		scaled_lattice_c_vector = scaled_lattice_matrix[2]
+                scaled_lattice_c_vector_len = np.linalg.norm(scaled_lattice_c_vector)
 		
 		#Next, get number of sites that will be amorphous.
 		#n_amorphous_sites = n_amorph_layers * orig_slab_unit_cell.num_sites
@@ -145,7 +148,7 @@ def scale_amorphous_region(orig_slab, orig_oriented_unit_cell, n_amorph_layers, 
 
 		[1, 0, 0],
 		[0, 1, 0],
-		[0, 0, (scale_factor*amorphous_region_length)/(np.linalg.norm(nonvac_c_vector))]
+		[0, 0, (scale_factor*amorphous_region_length)/(nonvac_c_vector_len)]
 
 		])
 
@@ -168,7 +171,7 @@ def scale_amorphous_region(orig_slab, orig_oriented_unit_cell, n_amorph_layers, 
 		normalization_matrix = np.array([
 		[1, 0, 0],
 		[0, 1, 0],
-		[0, 0, np.linalg.norm(nonvac_c_vector)/np.linalg.norm(scaled_lattice_c_vector)]
+		[0, 0, nonvac_c_vector_len/scaled_lattice_c_vector_len]
 
 		])
 	
