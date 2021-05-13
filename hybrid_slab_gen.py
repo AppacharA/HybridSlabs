@@ -19,9 +19,6 @@ def scale_amorphous_region(orig_slab, orig_oriented_unit_cell, n_amorph_layers, 
 	#Supercelled structures.
 
 	#Determine how many layers the slab has by comparison with oriented unit cell.
-	
-	#orig_slab_unit_cell = orig_oriented_unit_cell
-
 	nlayers = (orig_slab.num_sites) / (orig_oriented_unit_cell.num_sites)
 
 
@@ -51,25 +48,19 @@ def scale_amorphous_region(orig_slab, orig_oriented_unit_cell, n_amorph_layers, 
 		#First, we will extract the vacuumless slab from the original slab. 
 
 		#Get Lattice matrix from unit cell.
-		#unit_lattice_matrix = orig_slab_unit_cell.lattice.matrix
 		unit_lattice_matrix = orig_oriented_unit_cell.lattice.matrix
 		
-		#unit_a_vector = unit_lattice_matrix[0]
-
-		#unit_b_vector = unit_lattice_matrix[1]
-
-                #All of our transforms occur on the c axis, so we'll store the lengths of the c-vectors directly, to minimize function calls later.
+                #All of our transforms occur on the c axis, so we'll store the c-vectors and their lengths directly, to minimize function calls later.
 		unit_c_vector = unit_lattice_matrix[2]
-                unit_c_vector_len = np.linalg.norm(unit_c_vector) 
-                
-                #create new lattice vector that is equal to n-unit cells stacked together on c-axis.
+		unit_c_vector_len = np.linalg.norm(unit_c_vector) 
+#create new lattice vector that is equal to n-unit cells stacked together on c-axis.
 
 		nonvac_lattice_matrix = unit_lattice_matrix.copy()
 
 		nonvac_lattice_matrix[2] = nlayers * unit_c_vector
 
 		nonvac_c_vector = nonvac_lattice_matrix[2]
-                nonvac_c_vector_len = np.linalg.norm(nonvac_c_vector)
+		nonvac_c_vector_len = np.linalg.norm(nonvac_c_vector)
 	
 		#Next, we modify the atomic coordinates from the original slab. 
 		
@@ -77,7 +68,7 @@ def scale_amorphous_region(orig_slab, orig_oriented_unit_cell, n_amorph_layers, 
 		orig_frac_coords = orig_slab.frac_coords
 
 		orig_c_vector = orig_slab.lattice.matrix[2]
-                orig_c_vector_len = np.linalg.norm(orig_c_vector)
+		orig_c_vector_len = np.linalg.norm(orig_c_vector)
 	
 
 		#Create scaling matrix.
@@ -89,7 +80,6 @@ def scale_amorphous_region(orig_slab, orig_oriented_unit_cell, n_amorph_layers, 
 			])
 
 		#Use above scaling matrix to reposition atoms.We reassign fractional coordinates based on length of a slab that doesn't have a vacuum. 
-		#nonvac_frac_coords = np.matmul(orig_frac_coords, scaling_matrix)
 		nonvac_frac_coords = np.matmul(orig_slab.frac_coords, scaling_matrix)	
 
 
@@ -125,10 +115,9 @@ def scale_amorphous_region(orig_slab, orig_oriented_unit_cell, n_amorph_layers, 
 		scaled_lattice_matrix[2] = scaled_lattice_matrix[2] * (total_slab_expansion_factor)
 
 		scaled_lattice_c_vector = scaled_lattice_matrix[2]
-                scaled_lattice_c_vector_len = np.linalg.norm(scaled_lattice_c_vector)
+		scaled_lattice_c_vector_len = np.linalg.norm(scaled_lattice_c_vector)
 		
 		#Next, get number of sites that will be amorphous.
-		#n_amorphous_sites = n_amorph_layers * orig_slab_unit_cell.num_sites
 		n_amorphous_sites = n_amorph_layers * orig_oriented_unit_cell.num_sites
 
 			
@@ -136,8 +125,12 @@ def scale_amorphous_region(orig_slab, orig_oriented_unit_cell, n_amorph_layers, 
 		scaled_frac_coords = nonvac_frac_coords.copy()
 
 		#Using packmol, get random packed structure of amorphous atoms.
+<<<<<<< HEAD
 		#amorph_struct = packmol_gen_parallelipiped_random_packing(n_amorph_layers, orig_slab_unit_cell, scale_factor)
+		amorph_struct = packmol_gen_parallelipiped_random_packing(n_amorph_layers, orig_oriented_unit_cell, scale_factor, cleanup=False)
+=======
 		amorph_struct = packmol_gen_parallelipiped_random_packing(n_amorph_layers, orig_oriented_unit_cell, scale_factor)
+>>>>>>> 5c0e1b99174d0ec7f90da5906047aab9bf1750de
 			
 		#Extract frac coords of amorphous structure. These are fractional in relation to scale_factor * original_amorphous_length
 		amorph_frac_coords = amorph_struct.frac_coords

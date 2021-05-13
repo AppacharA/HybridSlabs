@@ -20,12 +20,10 @@ def packmol_gen_parallelipiped_random_packing(nlayers, oriented_unit_cell, scale
 
 	#First, get lattice matrix of oriented_unit_cell. Extract the a, b, c vectors.
 	
- 
 	lattice_matrix = oriented_unit_cell.lattice.matrix
 
 	unit_a_vec = lattice_matrix[0]
 	unit_b_vec = lattice_matrix[1]
-
 	unit_c_vec = lattice_matrix[2]
 
 	#Get the scaled c vector.
@@ -33,26 +31,37 @@ def packmol_gen_parallelipiped_random_packing(nlayers, oriented_unit_cell, scale
 
 
 	#Next, get the equations for the planes. Will be represented as list [i, j, k, l], where ix + jy + kz = l
-	#Check https://numpy.org/doc/stable/reference/generated/numpy.cross.html to get an idea of how to clean this code up & do it more efficiently.
 
-    ######THE BETTER WAY (MAYBE)######
         #Fundamentally we do three cross products: axb, cxa, and bxc.
-        left_hand_side = np.array([unit_a_vec, unit_c_vec, unit_b_vec])
-        right_hand_side = np.array([unit_b_vec, unit_a_vec, unit_c_vec])
+	left_hand_side = np.array([unit_a_vec, unit_c_vec, unit_b_vec])
+	right_hand_side = np.array([unit_b_vec, unit_a_vec, unit_c_vec])
         
-        basis_planes = np.cross(left_hand_side, right_hand_side) #Gives planes ab, ac, bc
+<<<<<<< HEAD
+	basis_planes = np.cross(left_hand_side, right_hand_side) #Gives planes ab, ac, bc
 
-        nonzero_dot_products = -1 * np.dot(basis_planes, np.array([scaled_c_vec, unit_b_vec, unit_a_vec])) #Multiply by -1 to account for eventual flipping of normals?
+	nonzero_dot_products = -1 * (basis_planes * np.array([scaled_c_vec, unit_b_vec, unit_a_vec])).sum(axis=1) #Multiply by -1 to account for eventual flipping of normals?
+	print(nonzero_dot_products)
+=======
+        #This gives planes spanned, respectively, by a&b, a&c, b&c. All three plane normals point into the box. 
+        basis_planes = np.cross(left_hand_side, right_hand_side)
 
+        #Of the six boundary planes, 3 of them intersect the origin. Therefore their l values (calculated via dot product) will be zero. We need to calculate the dot products of the other 3 planes.
+       
+        #We additionally multiply by -1 in order to orient the plane normals to point into the box.
+>>>>>>> 5c0e1b99174d0ec7f90da5906047aab9bf1750de
+
+        nonzero_dot_products = -1 * (basis_planes * np.array([scaled_c_vec, unit_b_vec, unit_a_vec])).sum(axis=1)
+        
         #Put it all together.
-        boundary_planes = np.zeros((6, 4))
+	boundary_planes = np.zeros((6, 4))
 
+<<<<<<< HEAD
         
-        boundary_planes[:3, :3] = basis_planes
-        boundary_planes[3:, :3] = -1 * basis_planes
-        boundary_planes[3:, 3] = nonzero_dot_products
+	boundary_planes[:3, :3] = basis_planes
+	boundary_planes[3:, :3] = -1 * basis_planes
+	boundary_planes[3:, 3] = nonzero_dot_products
 
-        print(boundary_planes)
+	print(boundary_planes)
         ####################
     
 	plane_ab1 = np.zeros(4) #The plane spanned by vectors a & b. Start with [0,0,0,0]
@@ -94,12 +103,18 @@ def packmol_gen_parallelipiped_random_packing(nlayers, oriented_unit_cell, scale
 	
 	planes = [plane_ab1, plane_ab2, plane_ac2, plane_ac1, plane_bc1, plane_bc2]
 
-        print(planes)
+	print(planes)
 
 
 
+=======
+        boundary_planes[:3, :3] = basis_planes
+        boundary_planes[3:, :3] = -1 * basis_planes
+        boundary_planes[3:, 3] = nonzero_dot_products
+
+    
+>>>>>>> 5c0e1b99174d0ec7f90da5906047aab9bf1750de
 	#Now, we must write the lines for the packmol file to read.
-
 
 	lines = []
 
@@ -139,7 +154,7 @@ def packmol_gen_parallelipiped_random_packing(nlayers, oriented_unit_cell, scale
 
 		#Pack into the desired region, defined by our 6 planes.. Units are PROBABLY in angstroms.
 
-		for plane in planes:
+		for plane in boundary_planes:
 			#Use list comprehension to convert plane into strings.
 			str_plane = [str(num) for num in plane]
 			
@@ -156,7 +171,8 @@ def packmol_gen_parallelipiped_random_packing(nlayers, oriented_unit_cell, scale
 
 	#Write the file as output.
 	packmol_filename = "packmol" + "".join(formula.split()) + ".input"
-	with open(packmol_filename, "w") as f:
+	
+        with open(packmol_filename, "w") as f:
 		f.writelines(lines)
 
 	
