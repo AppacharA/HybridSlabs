@@ -17,7 +17,7 @@ from datetime import datetime
 
 #General parameters (what orientation of slab to make, how many layers to amorphize, etc.)
 
-def get_hybrid_slab_amorph_wf(base_matl, vol_exp=1.2)
+def get_hybrid_slab_amorph_wf(base_matl, vol_exp=1.2):
 
     orientation = (0, 0, 1)
     n_total_layers = 10
@@ -90,7 +90,7 @@ def get_bulk_amorph_wf(base_matl, vol_exp=1.2):
 def get_bulk_crystal_wf(base_matl, custom_incar_settings = {}):
     #Do we need to supercell this...>? Or can we just submit it to a crystalline calculation....
 
-    tag = datetime.utcnow(().strftime('%Y-%m-%d-%H-%M-%S-%f')
+    tag = datetime.utcnow().strftime('%Y-%m-%d-%H-%M-%S-%f')
     
     vasp_set = MPRelaxSet(base_matl, user_incar_settings = custom_incar_settings) #Do we need a force_gamma=True here?
 
@@ -123,6 +123,5 @@ if __name__ == "__main__":
     with MPRester() as m:
         base_matl = m.get_structure_by_material_id("mp-127")
 
+    get_all_interfacial_workflows(base_matl)
 
-    lp = LaunchPad.auto_load()
-    lp.add_wf(wf)

@@ -125,15 +125,9 @@ def scale_amorphous_region(orig_slab, orig_oriented_unit_cell, n_amorph_layers, 
 		scaled_frac_coords = nonvac_frac_coords.copy()
 
 		#Using packmol, get random packed structure of amorphous atoms.
-<<<<<<< HEAD
-<<<<<<< HEAD
+
 		#amorph_struct = packmol_gen_parallelipiped_random_packing(n_amorph_layers, orig_slab_unit_cell, scale_factor)
-		amorph_struct = packmol_gen_parallelipiped_random_packing(n_amorph_layers, orig_oriented_unit_cell, scale_factor, cleanup=False)
-=======
-=======
->>>>>>> 5c0e1b99174d0ec7f90da5906047aab9bf1750de
 		amorph_struct = packmol_gen_parallelipiped_random_packing(n_amorph_layers, orig_oriented_unit_cell, scale_factor)
->>>>>>> 5c0e1b99174d0ec7f90da5906047aab9bf1750de
 			
 		#Extract frac coords of amorphous structure. These are fractional in relation to scale_factor * original_amorphous_length
 		amorph_frac_coords = amorph_struct.frac_coords
