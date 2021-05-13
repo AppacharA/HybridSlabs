@@ -37,6 +37,7 @@ def packmol_gen_parallelipiped_random_packing(nlayers, oriented_unit_cell, scale
 	right_hand_side = np.array([unit_b_vec, unit_a_vec, unit_c_vec])
         
 <<<<<<< HEAD
+<<<<<<< HEAD
 	basis_planes = np.cross(left_hand_side, right_hand_side) #Gives planes ab, ac, bc
 
 	nonzero_dot_products = -1 * (basis_planes * np.array([scaled_c_vec, unit_b_vec, unit_a_vec])).sum(axis=1) #Multiply by -1 to account for eventual flipping of normals?
@@ -50,11 +51,21 @@ def packmol_gen_parallelipiped_random_packing(nlayers, oriented_unit_cell, scale
         #We additionally multiply by -1 in order to orient the plane normals to point into the box.
 >>>>>>> 5c0e1b99174d0ec7f90da5906047aab9bf1750de
 
+=======
+        #This gives planes spanned, respectively, by a&b, a&c, b&c. All three plane normals point into the box. 
+        basis_planes = np.cross(left_hand_side, right_hand_side)
+
+        #Of the six boundary planes, 3 of them intersect the origin. Therefore their l values (calculated via dot product) will be zero. We need to calculate the dot products of the other 3 planes.
+       
+        #We additionally multiply by -1 in order to orient the plane normals to point into the box.
+
+>>>>>>> 5c0e1b99174d0ec7f90da5906047aab9bf1750de
         nonzero_dot_products = -1 * (basis_planes * np.array([scaled_c_vec, unit_b_vec, unit_a_vec])).sum(axis=1)
         
         #Put it all together.
 	boundary_planes = np.zeros((6, 4))
 
+<<<<<<< HEAD
 <<<<<<< HEAD
         
 	boundary_planes[:3, :3] = basis_planes
@@ -116,6 +127,15 @@ def packmol_gen_parallelipiped_random_packing(nlayers, oriented_unit_cell, scale
 >>>>>>> 5c0e1b99174d0ec7f90da5906047aab9bf1750de
 	#Now, we must write the lines for the packmol file to read.
 
+=======
+        boundary_planes[:3, :3] = basis_planes
+        boundary_planes[3:, :3] = -1 * basis_planes
+        boundary_planes[3:, 3] = nonzero_dot_products
+
+    
+	#Now, we must write the lines for the packmol file to read.
+
+>>>>>>> 5c0e1b99174d0ec7f90da5906047aab9bf1750de
 	lines = []
 
 	#Add tolerance. This is distance between different materials (not elements! materials).
