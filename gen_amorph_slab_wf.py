@@ -3,8 +3,9 @@ from mpmorph.workflows.converge import get_converge_wf
 from mpmorph.runners.amorphous_maker import get_random_packed
 from fireworks import LaunchPad, Workflow
 from atomate.vasp.fireworks.core import OptimizeFW
+from atomate.common.powerups import set_execution_options
 
-from pymatgen import Composition
+from pymatgen.core import Composition
 from pymatgen.io.vasp import Poscar
 from pymatgen.io.vasp.sets import MPRelaxSet
 from pymatgen.ext.matproj import MPRester
@@ -56,7 +57,13 @@ def get_hybrid_slab_amorph_wf(base_matl, vol_exp=1.2):
     #create convergence workflow.
     prod_args =  {'optional_fw_params': {'override_default_vasp_params': {'user_incar_settings': {'LCHARG': 'TRUE', 'NCORE': '36'}}}} #Overriding default vasp settings to force LCHARG to true...
 
-    wf = get_converge_wf(sd_slab, temperature = 5000, target_steps = 10000, preconverged=True, prod_args = prod_args)
+    temperature = 5000
+    target_steps = 10000
+    
+    wf_name = f"HybridSlab_{base_matl.composition.reduced_formula}_{matl_slab.num_sites}_atoms_{temperature}K_{target_steps}_steps"
+
+
+    wf = get_converge_wf(sd_slab, temperature = 5000, target_steps = 10000, preconverged=True, prod_args = prod_args, wf_name= wf_name)
 
     return wf
 
@@ -104,11 +111,15 @@ def get_bulk_crystal_wf(base_matl, custom_incar_settings = {}):
 
 def get_all_interfacial_workflows(base_matl):
 
-    #Get hybrid slab.
-    hybrid_slab_amorph_wf = get_hybrid_slab_amorph_wf(base_matl)
+    #Get hybrid slab wf, and then categorize it as "amorphous" (so that only CNM HPC will be able to run it).
+    wf = get_hybrid_slab_amorph_wf(base_matl)
+
+    hybrid_slab_amorph_wf = set_execution_options(wf, category="amorphization")
 
     #Get bulk amorph wf.
-    bulk_amorph_wf = get_bulk_amorph_wf(base_matl)
+    
+    wf = get_bulk_amorph_wf(base_matl)
+    bulk_amorph_wf = set_execution_options(wf, category="amorphization")
 
     #Get bulk crystalline..
     bulk_crystal_wf = get_bulk_crystal_wf(base_matl)
