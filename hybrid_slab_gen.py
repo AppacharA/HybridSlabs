@@ -226,53 +226,129 @@ def set_selective_dynamics(unit_cell, slab, n_amorph_layers): #A method to set s
 	return poscar
 
 
+def generate_multicomponent_slab(cryst_matl_unit_cell, amorph_matl_unit_cell, vol_expansion_factor, n_layers_amorph, supercell_params=[1,1,1], **kwargs):
+#A function that will create a hybrid slab where the composition of the amorphous region does not match the composition of the crystalline region.
 
+	#First, generate standard surface slab of crystalline material.
+	#kwargs will get passed directly to the standard slab generation algorithm.
+	
+	slabgen = SlabGenerator(cryst_matl_unit_cell, **kwargs)
+
+	all_slabs = slabgen.get_slabs()
+	
+	orig_cryst_slab = all_slabs[0]
+
+	#Create supercells of slab and its unit cell....#TODO EXPLAIN WHY HERE.
+
+	
+	supercell_slab = orig_cryst_slab.copy()
+	supercell_slab.make_supercell(supercell_params)
+
+	unit_supercell = orig_cryst_slab.oriented_unit_cell.copy()
+	unit_supercell.make_supercell(supercell_params)	
+
+	print(unit_supercell)
+	#Calculate new volume expansion factor...
+
+	#TODO-come up with more descriptive variable name???
+
+
+	cryst_atomic_vol = (cryst_matl_unit_cell.volume / cryst_matl_unit_cell.num_sites)
+
+	amorph_atomic_vol = (amorph_matl_unit_cell.volume/amorph_matl_unit_cell.num_sites)
+
+	atomic_vol_ratios =  (amorph_atomic_vol/cryst_atomic_vol)
+	
+	updated_vol_exp = vol_expansion_factor * atomic_vol_ratios
+
+	
+	#Amorphize the slab & set selective dynamics.....
+
+	amorphized_slab = scale_amorphous_region(supercell_slab, unit_supercell, n_layers_amorph, updated_vol_exp)
+
+	
+	sd_poscar = set_selective_dynamics(unit_supercell, amorphized_slab, n_layers_amorph)
+
+	#Finally, adjust the species in the amorphous region to match the liquid matl species.
+
+	n_amorph_sites = int(n_layers_amorph * unit_supercell.num_sites)
+	
+	
+	#Assuming single component material...
+	amorph_species = [amorph_matl_unit_cell.species[0] ] * n_amorph_sites #Creates list of n_amorph_sites of element in amorph slab...
+
+	cryst_species = sd_poscar.structure.species
+
+
+	hybrid_species = cryst_species[:n_amorph_sites] + amorph_species
+	
+	print(len(hybrid_species))
+	print(amorphized_slab)	
+
+	#Create the multicomponent slab and its poscar...
+
+	
+	multicomp_slab = Structure(sd_poscar.structure.lattice, hybrid_species, sd_poscar.structure.frac_coords)
+
+	multicomp_slab_sd_posc = Poscar(multicomp_slab, selective_dynamics= sd_poscar.selective_dynamics)
+	return multicomp_slab_sd_posc
 
 
 if __name__ == "__main__":
 	with MPRester() as m:
 
 		Sodium = m.get_structure_by_material_id("mp-127")
-		GaN = m.get_structure_by_material_id("mp-804")
-		
-	unit_cells = [("Sodium", Sodium)]
-	for matl in unit_cells:
-		
-		#Obtain a slab with 10 unit cell layers and 1 layer of vacuum, oriented in (111).
+		Nickel = m.get_structure_by_material_id("mp-23")
 
 
-		slabgen001 = SlabGenerator(matl[1], (0, 0, 1), 10, 1, in_unit_planes = True, max_normal_search = 4)
+	multicomp_posc = generate_multicomponent_slab(Nickel, Sodium, 1.05, 2.5, [3,3,1], miller_index = (0,0,1), min_slab_size = 10, min_vacuum_size = 1, in_unit_planes = True, max_normal_search = 2)
 
 
-		all_slabs001 = slabgen001.get_slabs()
-
-		
-
-
-		orig_slab_001 = all_slabs001[0]
 
 	
-
-		#Now, we will make supercell of this slab, and of its unitcell.
-		
-		supercell_slab = orig_slab_001.copy()
-		supercell_slab.make_supercell([3,3,1])
-
-		unit_supercell = orig_slab_001.oriented_unit_cell.copy()
-		unit_supercell.make_supercell([3,3,1])	
-
-
-		#Next, modify slab. Amorphize 5 layers.
-		scaled_supercell001 = scale_amorphous_region(supercell_slab, unit_supercell, 2.5, 1.0442)
-
-		#Finally, set selective dynamics.
-		sd_poscar = set_selective_dynamics(unit_supercell, scaled_supercell001, 2.5)
-
-
-				
-		scaled_supercell = (matl[0] + "_001", scaled_supercell001)
-
 	
-		scaled_supercell[1].to("poscar", filename = scaled_supercell[0] + "_scaled_supercell_POSCAR_parallelogram.vasp")
+	multicomp_posc.write_file("testing_NaNi_slab_orth_2.vasp")
 
-		sd_poscar.write_file(scaled_supercell[0] + "_scaled_supercell_POSCAR_parallelogram_SD.vasp")
+
+		
+#	unit_cells = [("Sodium", Sodium)]
+#	for matl in unit_cells:
+#		
+#		#Obtain a slab with 10 unit cell layers and 1 layer of vacuum, oriented in (111).
+#
+#
+#		slabgen001 = SlabGenerator(matl[1], (0, 0, 1), 10, 1, in_unit_planes = True, max_normal_search = 4)
+#
+#
+#		all_slabs001 = slabgen001.get_slabs()
+#
+#		
+#
+#
+#		orig_slab_001 = all_slabs001[0]
+#
+#	
+#
+#		#Now, we will make supercell of this slab, and of its unitcell.
+#		
+#		supercell_slab = orig_slab_001.copy()
+#		supercell_slab.make_supercell([3,3,1])
+#
+#		unit_supercell = orig_slab_001.oriented_unit_cell.copy()
+#		unit_supercell.make_supercell([3,3,1])	
+#
+#
+#		#Next, modify slab. Amorphize 5 layers.
+#		scaled_supercell001 = scale_amorphous_region(supercell_slab, unit_supercell, 2.5, 1.0442)
+#
+#		#Finally, set selective dynamics.
+#		sd_poscar = set_selective_dynamics(unit_supercell, scaled_supercell001, 2.5)
+#
+#
+#				
+#		scaled_supercell = (matl[0] + "_001", scaled_supercell001)
+#
+#	
+#		scaled_supercell[1].to("poscar", filename = scaled_supercell[0] + "_scaled_supercell_POSCAR_parallelogram.vasp")
+#
+#		sd_poscar.write_file(scaled_supercell[0] + "_scaled_supercell_POSCAR_parallelogram_SD.vasp")
