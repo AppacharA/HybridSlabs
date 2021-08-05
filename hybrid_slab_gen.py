@@ -12,16 +12,16 @@ import numpy as np
 
 import os
 
-def scale_amorphous_region(orig_slab, orig_oriented_unit_cell, n_amorph_layers, scale_factor, debug=False):#Take in as arguments the original slab structure, and the number of layers to amorphize, and the scaling factor. 
+def scale_amorphous_region(orig_slab, orig_oriented_unit_cell, n_amorph_layers, scale_factor, debug=True):#Take in as arguments the original slab structure, and the number of layers to amorphize, and the scaling factor. 
 #Return a Structure representing a hybrid slab.
 	
 	#Orig_slab and orig_oriented_unit_cell are passed in separately. This is to allow for compatibility with structures that are not Pymatgen Slab objects, e.g.
 	#Supercelled structures.
 
 	#Determine how many layers the slab has by comparison with oriented unit cell.
-	nlayers = (orig_slab.num_sites) / (orig_oriented_unit_cell.num_sites)
+	nlayers = (orig_slab.num_sites) / orig_oriented_unit_cell.num_sites
 
-
+	
 
 	#First, some basic bookkeeping checks. Make sure that number of layers specified is not greater than layers in slab.
 	
@@ -87,9 +87,7 @@ def scale_amorphous_region(orig_slab, orig_oriented_unit_cell, n_amorph_layers, 
 		if debug == True:
 			#For debugging, create and print the vacuumless slab as a POSCAR.
 			nonVacSlab = Structure(nonvac_lattice_matrix, orig_slab.species, nonvac_frac_coords)
-
-		
-		
+			nonVacSlab.to("poscar", "nonvac_slab.vasp")	
 		#Now we have a slab without a vacuum. We will now begin to apply the amorphization transformation.
 	        #We must account for a volume change during amorphization, so there is a scaling process involved as well.
                 #Scaling only occurs along c-axis.
@@ -118,17 +116,20 @@ def scale_amorphous_region(orig_slab, orig_oriented_unit_cell, n_amorph_layers, 
 		scaled_lattice_c_vector_len = np.linalg.norm(scaled_lattice_c_vector)
 		
 		#Next, get number of sites that will be amorphous.
-		n_amorphous_sites = n_amorph_layers * orig_oriented_unit_cell.num_sites
-
+		n_amorphous_sites = int(n_amorph_layers * orig_oriented_unit_cell.num_sites)
 			
-		#Create array for scaled coords.
+		#Create array for scaled coords, and reorder them to be in strictly ascending value of c-position.
 		scaled_frac_coords = nonvac_frac_coords.copy()
+		scaled_frac_coords = scaled_frac_coords[scaled_frac_coords[:, 2].argsort()] #https://stackoverflow.com/questions/2828059/sorting-arrays-in-numpy-by-column/2828121#2828121
+	
+		if debug == True:
+			print("Scaled Frac Coords: ")
+			print(scaled_frac_coords)
 
 		#Using packmol, get random packed structure of amorphous atoms.
 
 		#amorph_struct = packmol_gen_parallelipiped_random_packing(n_amorph_layers, orig_slab_unit_cell, scale_factor)
-		amorph_struct = packmol_gen_parallelipiped_random_packing(n_amorph_layers, orig_oriented_unit_cell, scale_factor)
-			
+		amorph_struct = packmol_gen_parallelipiped_random_packing(n_amorph_layers, orig_oriented_unit_cell, scale_factor, cleanup=not debug)
 		#Extract frac coords of amorphous structure. These are fractional in relation to scale_factor * original_amorphous_length
 		amorph_frac_coords = amorph_struct.frac_coords
 
@@ -152,7 +153,6 @@ def scale_amorphous_region(orig_slab, orig_oriented_unit_cell, n_amorph_layers, 
 
 
 		amorph_frac_coords[:, 2] = amorph_frac_coords[:, 2] + frac_cryst_len
-
 
 
 		#Add everything back, then renormalize to expanded lattice.
@@ -195,13 +195,11 @@ def set_selective_dynamics(unit_cell, slab, n_amorph_layers): #A method to set s
 	#Using Unit Cell, identify all sites that are amorphous and non-amorphous. Unit cell does not need to be oriented.
 
 
-	n_amorph_sites = n_amorph_layers * unit_cell.num_sites
+	n_amorph_sites = int(n_amorph_layers * unit_cell.num_sites)
 
-	n_crystalline_interface_sites = 2 * unit_cell.num_sites
+	#n_crystalline_interface_sites = 2 * unit_cell.num_sites
 
-	n_crystalline_bulk_sites = slab.num_sites - n_amorph_sites - n_crystalline_interface_sites
-
-
+	n_crystalline_bulk_sites = int(slab.num_sites - n_amorph_sites) #- n_crystalline_interface_sites
 	#Create 3x3 boolean arrays. By design, these hybrid slabs are such that amorphous region will be at the bottom of the file/end of the list of sites.
 
 	#False is 0. All crystal sites will have Selective Dynamics False as their setting, because they are not allowed to move in the simulation.
@@ -210,7 +208,7 @@ def set_selective_dynamics(unit_cell, slab, n_amorph_layers): #A method to set s
 	crystal_bulk_flags = [[0 for i in range(cols)] for j in range(n_crystalline_bulk_sites)]
 
 	#Set True flags for two interface layers.
-	crystal_interface_flags = [[1 for i in range(cols)] for j in range(n_crystalline_interface_sites)]
+	#crystal_interface_flags = [[1 for i in range(cols)] for j in range(n_crystalline_interface_sites)]
 
 
 
@@ -219,7 +217,7 @@ def set_selective_dynamics(unit_cell, slab, n_amorph_layers): #A method to set s
 
 
 	#Combine the flags.
-	combined_flags = crystal_bulk_flags + crystal_interface_flags + amorph_flags
+	combined_flags = crystal_bulk_flags + amorph_flags #+ crystal_interface_flags
 
 
 	#Create final poscar file with the Selective Dynamics Flags.
@@ -243,8 +241,7 @@ if __name__ == "__main__":
 		#Obtain a slab with 10 unit cell layers and 1 layer of vacuum, oriented in (111).
 
 
-		slabgen001 = SlabGenerator(matl[1], (0, 0, 1), 10, 1, in_unit_planes = True, max_normal_search = 1)
-
+		slabgen001 = SlabGenerator(matl[1], (0, 0, 1), 10, 1, in_unit_planes = True, max_normal_search = 4)
 
 
 		all_slabs001 = slabgen001.get_slabs()
@@ -254,7 +251,7 @@ if __name__ == "__main__":
 
 		orig_slab_001 = all_slabs001[0]
 
-		
+	
 
 		#Now, we will make supercell of this slab, and of its unitcell.
 		
@@ -263,21 +260,13 @@ if __name__ == "__main__":
 
 		unit_supercell = orig_slab_001.oriented_unit_cell.copy()
 		unit_supercell.make_supercell([3,3,1])	
-	
+
 
 		#Next, modify slab. Amorphize 5 layers.
-		
-		print("HERE")
-		
-		
-	
-		#[scaled_slab001, non_vac_slab001] = scale_amorphous_region(orig_slab_001, 5, 1.2)
-
-		scaled_supercell001 = scale_amorphous_region(supercell_slab, unit_supercell, 5, 1.2)
-		
+		scaled_supercell001 = scale_amorphous_region(supercell_slab, unit_supercell, 2.5, 1.0442)
 
 		#Finally, set selective dynamics.
-		sd_poscar = set_selective_dynamics(unit_supercell, scaled_supercell001, 5)
+		sd_poscar = set_selective_dynamics(unit_supercell, scaled_supercell001, 2.5)
 
 
 				

@@ -155,7 +155,7 @@ def packmol_gen_parallelipiped_random_packing(nlayers, oriented_unit_cell, scale
 
 		#Leading spaces must be here.
 
-		lines.append(" number " + str(nlayers * int(el_dic.get(el))) + "\n" )
+		lines.append(" number " + str(int(nlayers * el_dic.get(el))) + "\n" )
 
 
 

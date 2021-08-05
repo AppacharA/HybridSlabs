@@ -34,22 +34,26 @@ def get_hybrid_slab_amorph_wf(base_matl, vol_exp=1.2):
 
     all_slabs = slabgen.get_slabs()
 
-    matl_slab = all_slabs[0]
+    orig_slab = all_slabs[0]
+	
+    supercell_matl_slab = orig_slab.copy()
 
-    matl_slab_unit_cell = matl_slab.oriented_unit_cell
+    supercell_matl_slab_unit_cell = orig_slab.oriented_unit_cell.copy()
 
     #Make supercell of the slab and its unit cell.
-    matl_slab.make_supercell([3,3,1])
+    supercell_matl_slab.make_supercell([3,3,1])
 
-    matl_slab_unit_cell.make_supercell([3,3,1])
+    supercell_matl_slab_unit_cell.make_supercell([3,3,1])
 
     #Amorphize the slab and set selective dynamics.
-    hybrid_matl_slab = scale_amorphous_region(matl_slab, matl_slab_unit_cell, n_layers_to_amorph, volume_scale_factor)
+    hybrid_matl_slab = scale_amorphous_region(supercell_matl_slab, supercell_matl_slab_unit_cell, n_layers_to_amorph, volume_scale_factor)
 
-    sd_poscar = set_selective_dynamics(matl_slab_unit_cell, matl_slab, n_layers_to_amorph)
+    print(hybrid_matl_slab)
+
+    sd_poscar = set_selective_dynamics(supercell_matl_slab_unit_cell, hybrid_matl_slab, n_layers_to_amorph)
 
     #Write the poscar file, read back in the structure.
-    sd_poscar.write_file(base_matl.formula + "_poscar_SD.vasp")
+    sd_poscar.write_file(base_matl.formula + "round2_poscar_SD.vasp")
 
     sd_slab = sd_poscar.structure
 
@@ -60,7 +64,7 @@ def get_hybrid_slab_amorph_wf(base_matl, vol_exp=1.2):
     temperature = 5000
     target_steps = 10000
     
-    wf_name = f"HybridSlab_{base_matl.composition.reduced_formula}_{matl_slab.num_sites}_atoms_{temperature}K_{target_steps}_steps"
+    wf_name = f"HybridSlab_{base_matl.composition.reduced_formula}_{supercell_matl_slab.num_sites}_atoms_{temperature}K_{target_steps}_steps"
 
 
     wf = get_converge_wf(sd_slab, temperature = 5000, target_steps = 10000, preconverged=True, prod_args = prod_args, wf_name= wf_name)
@@ -118,15 +122,15 @@ def get_all_interfacial_workflows(base_matl):
 
     #Get bulk amorph wf.
     
-    wf = get_bulk_amorph_wf(base_matl)
-    bulk_amorph_wf = set_execution_options(wf, category="amorphization")
+   # wf = get_bulk_amorph_wf(base_matl)
+   # bulk_amorph_wf = set_execution_options(wf, category="amorphization")
 
     #Get bulk crystalline..
-    bulk_crystal_wf = get_bulk_crystal_wf(base_matl)
+    #bulk_crystal_wf = get_bulk_crystal_wf(base_matl)
 
     lp = LaunchPad.auto_load()
-    lp.add_wf(bulk_crystal_wf)
-    lp.add_wf(bulk_amorph_wf)
+   # lp.add_wf(bulk_crystal_wf)
+   # lp.add_wf(bulk_amorph_wf)
     lp.add_wf(hybrid_slab_amorph_wf)
 
 if __name__ == "__main__":
