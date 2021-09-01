@@ -9,24 +9,26 @@ from pymatgen.io.vasp import Poscar
 from pymatgen.ext.matproj import MPRester
 
 import numpy as np
+from math import floor
 
 import os
 
-def scale_amorphous_region(orig_slab, orig_oriented_unit_cell, n_amorph_layers, scale_factor, debug=True):#Take in as arguments the original slab structure, and the number of layers to amorphize, and the scaling factor. 
+def scale_amorphous_region(orig_slab, orig_oriented_unit_cell, percentage_amorphized, scale_factor, debug=True):#Take in as arguments the original slab structure, and the number of layers to amorphize, and the scaling factor. 
 #Return a Structure representing a hybrid slab.
 	
 	#Orig_slab and orig_oriented_unit_cell are passed in separately. This is to allow for compatibility with structures that are not Pymatgen Slab objects, e.g.
 	#Supercelled structures.
 
-	#Determine how many layers the slab has by comparison with oriented unit cell.
-	nlayers = (orig_slab.num_sites) / orig_oriented_unit_cell.num_sites
-
+	#Determine how many layers the slab has.This is done by looking at how many atoms are in the same c-coordinate position...
+	c_coord = orig_slab.frac_coords[0, 2] #First fractional c-coordinate in the structure.
+	natoms_per_layer = len(orig_slab.frac_coords[orig_slab.frac_coords[:, 2] == c_coord])
+	nlayers = orig_slab.num_sites / natoms_per_layer	
 	
 
 	#First, some basic bookkeeping checks. Make sure that number of layers specified is not greater than layers in slab.
 	
-	if n_amorph_layers > nlayers:
-		print ("Number of layers to be amorphized exceeds number of layers in slab. The slab has not been modified.")
+	if percentage_amorphized > 1:
+		print ("Fraction of slab to be amorphized exceeds 100%. The slab has not been modified.")
 	
 		#Return unmodified original slab. 
 		return orig_slab
@@ -43,7 +45,8 @@ def scale_amorphous_region(orig_slab, orig_oriented_unit_cell, n_amorph_layers, 
 	#Then, we combine those coordinates with the coordinates of the crystalline region.
 	#Finally, we normalize all the coordinates in the structure against the expanded lattice length (since the amorphous part of the slab was just stretched, we want to avoid the amorphous region having coordinates > 1).
 		
-
+		#use percentage to determine how many amorphous layers must be made...
+		n_amorph_layers = floor(nlayers * percentage_amorphized)
 		
 		#First, we will extract the vacuumless slab from the original slab. 
 
@@ -116,7 +119,7 @@ def scale_amorphous_region(orig_slab, orig_oriented_unit_cell, n_amorph_layers, 
 		scaled_lattice_c_vector_len = np.linalg.norm(scaled_lattice_c_vector)
 		
 		#Next, get number of sites that will be amorphous.
-		n_amorphous_sites = int(n_amorph_layers * orig_oriented_unit_cell.num_sites)
+		n_amorphous_sites = int(n_amorph_layers * natoms_per_layer)
 			
 		#Create array for scaled coords, and reorder them to be in strictly ascending value of c-position.
 		scaled_frac_coords = nonvac_frac_coords.copy()
@@ -128,8 +131,7 @@ def scale_amorphous_region(orig_slab, orig_oriented_unit_cell, n_amorph_layers, 
 
 		#Using packmol, get random packed structure of amorphous atoms.
 
-		#amorph_struct = packmol_gen_parallelipiped_random_packing(n_amorph_layers, orig_slab_unit_cell, scale_factor)
-		amorph_struct = packmol_gen_parallelipiped_random_packing(n_amorph_layers, orig_oriented_unit_cell, scale_factor, cleanup=not debug)
+		amorph_struct = packmol_gen_parallelipiped_random_packing(n_amorph_layers, natoms_per_layer, orig_oriented_unit_cell, scale_factor, cleanup=not debug)
 		#Extract frac coords of amorphous structure. These are fractional in relation to scale_factor * original_amorphous_length
 		amorph_frac_coords = amorph_struct.frac_coords
 

@@ -6,7 +6,7 @@ from collections import OrderedDict
 from pymatgen.core import Structure
 
 
-def packmol_gen_parallelipiped_random_packing(nlayers, oriented_unit_cell, scale_factor, cleanup=True):
+def packmol_gen_parallelipiped_random_packing(nlayers, natoms_per_layer, oriented_unit_cell, scale_factor, cleanup=True):
 	#Take in as input the number of layers, the original unit cell, and the scaled c-length of the amorphous region.
 	#Return a random packed Pymatgen Structure.
 
@@ -24,10 +24,14 @@ def packmol_gen_parallelipiped_random_packing(nlayers, oriented_unit_cell, scale
 
 	unit_a_vec = lattice_matrix[0]
 	unit_b_vec = lattice_matrix[1]
-	unit_c_vec = lattice_matrix[2]
+	unit_c_vec = lattice_matrix[2] 
+
+	unit_cell_per_layer = natoms_per_layer/oriented_unit_cell.num_sites #To adjust for cases where the unit cell might contain more than one layer of atoms.
+	
 
 	#Get the scaled c vector.
-	scaled_c_vec = unit_c_vec * nlayers * scale_factor
+	
+	scaled_c_vec = unit_c_vec * unit_cell_per_layer * nlayers * scale_factor
 
 
 	#Next, get the equations for the planes. Will be represented as list [i, j, k, l], where ix + jy + kz = l
@@ -155,7 +159,7 @@ def packmol_gen_parallelipiped_random_packing(nlayers, oriented_unit_cell, scale
 
 		#Leading spaces must be here.
 
-		lines.append(" number " + str(int(nlayers * el_dic.get(el))) + "\n" )
+		lines.append(" number " + str(int(nlayers * el_dic.get(el) * unit_cell_per_layer)) + "\n" )
 
 
 
