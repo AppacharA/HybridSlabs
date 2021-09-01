@@ -301,13 +301,13 @@ if __name__ == "__main__":
 		Nickel = m.get_structure_by_material_id("mp-23")
 
 
-	multicomp_posc = generate_multicomponent_slab(Nickel, Sodium, 1.05, 2.5, [3,3,1], miller_index = (0,0,1), min_slab_size = 10, min_vacuum_size = 1, in_unit_planes = True, max_normal_search = 2)
+	multicomp_posc = generate_multicomponent_slab(Nickel, Sodium, 1.05, 5, [3,3,1], miller_index = (0,0,1), min_slab_size = 10, min_vacuum_size = 1, in_unit_planes = True, max_normal_search = 2)
 
 
 
 	
 	
-	multicomp_posc.write_file("testing_NaNi_slab_orth_2.vasp")
+	#multicomp_posc.write_file("testing_NaNi_slab_orth_2.vasp")
 
 
 		
