@@ -234,7 +234,35 @@ def set_selective_dynamics(unit_cell, slab, percentage_amorphized): #A method to
 	return poscar
 
 
+def generate_hybrid_slab(percent_amorphized, volume_scale_factor, supercell_params=[1,1,1], *args, **kwargs):
+	#Helper function to create hybrid slab with desired selective dynamics flags.
+	#Returns a Pymatgen POSCAR Object.
+	#Takes in as input a percentage amorphization, and then the standard set of arguments to generate a slab through Pymatgen's preexisting functions.
 
+	slabgen = SlabGenerator(*args, **kwargs)
+
+	all_slabs = slabgen.get_slabs()
+
+	orig_slab = all_slabs[0]
+
+	supercell_matl_slab = orig_slab.copy()
+
+
+	supercell_matl_slab_unit_cell = orig_slab.oriented_unit_cell.copy()
+
+	#Make supercell of the slab and its unit cell.
+
+	supercell_matl_slab.make_supercell(supercell_params)
+
+	supercell_matl_slab_unit_cell.make_supercell(supercell_params)
+
+	#Amorphize the slab and set selective dynamics.
+	hybrid_matl_slab = scale_amorphous_region(supercell_matl_slab, supercell_matl_slab_unit_cell, percent_amorphized, volume_scale_factor)
+
+
+	hybrid_matl_slab_sd_poscar = set_selective_dynamics(supercell_matl_slab_unit_cell, hybrid_matl_slab, fraction_amorph)
+
+	return hybrid_matl_slab_sd_poscar
 
 
 if __name__ == "__main__":
@@ -297,36 +325,41 @@ if __name__ == "__main__":
 	with MPRester() as m:
 		base_matl = m.get_structure_by_material_id("mp-23")
 
+	
+	hybrid_Ni_slab = generate_hybrid_slab(fraction_amorph, volume_scale_factor, [3,3,1], base_matl, orientation, thickness, 1, max_normal_search=1)
+
+
+
 	#Then, generate the slab using Pymatgen's builtin functionality.
-	slabgen = SlabGenerator(base_matl, orientation, thickness, 1, max_normal_search = 1)
+	#slabgen = SlabGenerator(base_matl, orientation, thickness, 1, max_normal_search = 1)
 
-	all_slabs = slabgen.get_slabs()
+	#all_slabs = slabgen.get_slabs()
 
-	orig_slab = all_slabs[0]
+	#orig_slab = all_slabs[0]
 
-	supercell_matl_slab = orig_slab.copy()
-
-
-	supercell_matl_slab_unit_cell = orig_slab.oriented_unit_cell.copy()
-
-	#Make supercell of the slab and its unit cell.
-	supercell_matl_slab.make_supercell([3,3,1])
-
-	supercell_matl_slab_unit_cell.make_supercell([3,3,1])
-
-	print(supercell_matl_slab)
-	print(supercell_matl_slab_unit_cell)
-
-	#Amorphize the slab and set selective dynamics.
-	hybrid_matl_slab = scale_amorphous_region(supercell_matl_slab, supercell_matl_slab_unit_cell, fraction_amorph, volume_scale_factor, debug=False)
+	#supercell_matl_slab = orig_slab.copy()
 
 
-	sd_poscar = set_selective_dynamics(supercell_matl_slab_unit_cell, hybrid_matl_slab, fraction_amorph)
+	#supercell_matl_slab_unit_cell = orig_slab.oriented_unit_cell.copy()
+
+	##Make supercell of the slab and its unit cell.
+	#supercell_matl_slab.make_supercell([3,3,1])
+
+	#supercell_matl_slab_unit_cell.make_supercell([3,3,1])
+
+	#print(supercell_matl_slab)
+	#print(supercell_matl_slab_unit_cell)
+
+	##Amorphize the slab and set selective dynamics.
+	#hybrid_matl_slab = scale_amorphous_region(supercell_matl_slab, supercell_matl_slab_unit_cell, fraction_amorph, volume_scale_factor, debug=False)
+
+
+	#sd_poscar = set_selective_dynamics(supercell_matl_slab_unit_cell, hybrid_matl_slab, fraction_amorph)
 
 	#Write the poscar file, read back in the structure.
 	filename = base_matl.formula + "poscar_SD.vasp_thickness"
 
 	rootdir = Path(os.getcwd())
 
-	sd_poscar.write_file(rootdir/"NiHybridSlab"/filename)
+	hybrid_Ni_slab.write_file(rootdir/"NiHybridSlab"/filename)
 	
