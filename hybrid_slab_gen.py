@@ -193,13 +193,18 @@ def scale_amorphous_region(orig_slab, orig_oriented_unit_cell, percentage_amorph
 
 
 
-def set_selective_dynamics(unit_cell, slab, n_amorph_layers): #A method to set selective dynamics flags for a hybrid slab.
-	#Using Unit Cell, identify all sites that are amorphous and non-amorphous. Unit cell does not need to be oriented.
+def set_selective_dynamics(unit_cell, slab, percentage_amorphized): #A method to set selective dynamics flags for a hybrid slab.
+	#Using Unit Cell, identify all sites that are amorphous and non-amorphous. Unit cell should be oriented.
 
+	#Determine how many layers the slab has.This is done by looking at how many atoms are in the same c-coordinate position...
+	c_coord = slab.frac_coords[0, 2] #First fractional c-coordinate in the structure.
+	natoms_per_layer = len(slab.frac_coords[slab.frac_coords[:, 2] == c_coord])
+	nlayers = slab.num_sites / natoms_per_layer	
 
-	n_amorph_sites = int(n_amorph_layers * unit_cell.num_sites)
-
-	#n_crystalline_interface_sites = 2 * unit_cell.num_sites
+	#use percentage to determine how many amorphous layers must be made...
+	n_amorph_layers = floor(nlayers * percentage_amorphized)
+	
+	n_amorph_sites = int(n_amorph_layers * natoms_per_layer)
 
 	n_crystalline_bulk_sites = int(slab.num_sites - n_amorph_sites) #- n_crystalline_interface_sites
 	#Create 3x3 boolean arrays. By design, these hybrid slabs are such that amorphous region will be at the bottom of the file/end of the list of sites.
