@@ -12,8 +12,9 @@ import numpy as np
 from math import floor
 
 import os
+from pathlib import Path
 
-def scale_amorphous_region(orig_slab, orig_oriented_unit_cell, percentage_amorphized, scale_factor, debug=True):#Take in as arguments the original slab structure, and the number of layers to amorphize, and the scaling factor. 
+def scale_amorphous_region(orig_slab, orig_oriented_unit_cell, percentage_amorphized, scale_factor, debug=False):#Take in as arguments the original slab structure, and the number of layers to amorphize, and the scaling factor. 
 #Return a Structure representing a hybrid slab.
 	
 	#Orig_slab and orig_oriented_unit_cell are passed in separately. This is to allow for compatibility with structures that are not Pymatgen Slab objects, e.g.
@@ -237,49 +238,95 @@ def set_selective_dynamics(unit_cell, slab, percentage_amorphized): #A method to
 
 
 if __name__ == "__main__":
+	#with MPRester() as m:
+
+	#	Sodium = m.get_structure_by_material_id("mp-127")
+	#	GaN = m.get_structure_by_material_id("mp-804")
+	#	
+	#unit_cells = [("Sodium", Sodium)]
+	#for matl in unit_cells:
+	#	
+	#	#Obtain a slab with 10 unit cell layers and 1 layer of vacuum, oriented in (111).
+
+
+	#	slabgen001 = SlabGenerator(matl[1], (0, 0, 1), 10, 1, in_unit_planes = True, max_normal_search = 4)
+
+
+	#	all_slabs001 = slabgen001.get_slabs()
+
+	#	
+
+
+	#	orig_slab_001 = all_slabs001[0]
+
+	#
+
+	#	#Now, we will make supercell of this slab, and of its unitcell.
+	#	
+	#	supercell_slab = orig_slab_001.copy()
+	#	supercell_slab.make_supercell([3,3,1])
+
+	#	unit_supercell = orig_slab_001.oriented_unit_cell.copy()
+	#	unit_supercell.make_supercell([3,3,1])	
+
+
+	#	#Next, modify slab. Amorphize 5 layers.
+	#	scaled_supercell001 = scale_amorphous_region(supercell_slab, unit_supercell, 2.5, 1.0442)
+
+	#	#Finally, set selective dynamics.
+	#	sd_poscar = set_selective_dynamics(unit_supercell, scaled_supercell001, 2.5)
+
+
+	#			
+	#	scaled_supercell = (matl[0] + "_001", scaled_supercell001)
+
+	#
+	#	scaled_supercell[1].to("poscar", filename = scaled_supercell[0] + "_scaled_supercell_POSCAR_parallelogram.vasp")
+
+	#	sd_poscar.write_file(scaled_supercell[0] + "_scaled_supercell_POSCAR_parallelogram_SD.vasp")
+
+
+
+	#Running a test case with Nickel....
+	orientation = (1, 1, 1)
+	thickness = 14 #Thickness in angstroms.
+	fraction_amorph = 0.5 #Proportion of slab you are amorphizing...
+	volume_scale_factor = 1.1435 #molten density 7790kg/m3, solid density 8908kg/m3
+
+	#First, we retrieve the structure.
 	with MPRester() as m:
+		base_matl = m.get_structure_by_material_id("mp-23")
 
-		Sodium = m.get_structure_by_material_id("mp-127")
-		GaN = m.get_structure_by_material_id("mp-804")
-		
-	unit_cells = [("Sodium", Sodium)]
-	for matl in unit_cells:
-		
-		#Obtain a slab with 10 unit cell layers and 1 layer of vacuum, oriented in (111).
+	#Then, generate the slab using Pymatgen's builtin functionality.
+	slabgen = SlabGenerator(base_matl, orientation, thickness, 1, max_normal_search = 1)
 
+	all_slabs = slabgen.get_slabs()
 
-		slabgen001 = SlabGenerator(matl[1], (0, 0, 1), 10, 1, in_unit_planes = True, max_normal_search = 4)
+	orig_slab = all_slabs[0]
 
-
-		all_slabs001 = slabgen001.get_slabs()
-
-		
+	supercell_matl_slab = orig_slab.copy()
 
 
-		orig_slab_001 = all_slabs001[0]
+	supercell_matl_slab_unit_cell = orig_slab.oriented_unit_cell.copy()
 
+	#Make supercell of the slab and its unit cell.
+	supercell_matl_slab.make_supercell([3,3,1])
+
+	supercell_matl_slab_unit_cell.make_supercell([3,3,1])
+
+	print(supercell_matl_slab)
+	print(supercell_matl_slab_unit_cell)
+
+	#Amorphize the slab and set selective dynamics.
+	hybrid_matl_slab = scale_amorphous_region(supercell_matl_slab, supercell_matl_slab_unit_cell, fraction_amorph, volume_scale_factor, debug=False)
+
+
+	sd_poscar = set_selective_dynamics(supercell_matl_slab_unit_cell, hybrid_matl_slab, fraction_amorph)
+
+	#Write the poscar file, read back in the structure.
+	filename = base_matl.formula + "poscar_SD.vasp_thickness"
+
+	rootdir = Path(os.getcwd())
+
+	sd_poscar.write_file(rootdir/"NiHybridSlab"/filename)
 	
-
-		#Now, we will make supercell of this slab, and of its unitcell.
-		
-		supercell_slab = orig_slab_001.copy()
-		supercell_slab.make_supercell([3,3,1])
-
-		unit_supercell = orig_slab_001.oriented_unit_cell.copy()
-		unit_supercell.make_supercell([3,3,1])	
-
-
-		#Next, modify slab. Amorphize 5 layers.
-		scaled_supercell001 = scale_amorphous_region(supercell_slab, unit_supercell, 2.5, 1.0442)
-
-		#Finally, set selective dynamics.
-		sd_poscar = set_selective_dynamics(unit_supercell, scaled_supercell001, 2.5)
-
-
-				
-		scaled_supercell = (matl[0] + "_001", scaled_supercell001)
-
-	
-		scaled_supercell[1].to("poscar", filename = scaled_supercell[0] + "_scaled_supercell_POSCAR_parallelogram.vasp")
-
-		sd_poscar.write_file(scaled_supercell[0] + "_scaled_supercell_POSCAR_parallelogram_SD.vasp")
