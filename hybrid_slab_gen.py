@@ -8,13 +8,15 @@ from pymatgen.io.vasp import Poscar
 
 from pymatgen.ext.matproj import MPRester
 
+from hybrid_slab import HybridSlab
+
 import numpy as np
 from math import floor
 
 import os
 from pathlib import Path
 
-def scale_amorphous_region(orig_slab, orig_oriented_unit_cell, percentage_amorphized, scale_factor, debug=False):#Take in as arguments the original slab structure, and the number of layers to amorphize, and the scaling factor. 
+def scale_amorphous_region(orig_slab, orig_oriented_unit_cell, percentage_amorphized, scale_factor, debug=False):#Take in as arguments the original slab structure, and the amount to amorphize, and the scaling factor. 
 #Return a Structure representing a hybrid slab.
 	
 	#Orig_slab and orig_oriented_unit_cell are passed in separately. This is to allow for compatibility with structures that are not Pymatgen Slab objects, e.g.
@@ -37,7 +39,7 @@ def scale_amorphous_region(orig_slab, orig_oriented_unit_cell, percentage_amorph
 		print ("Fraction of slab to be amorphized exceeds 100%. The slab has not been modified.")
 	
 		#Return unmodified original slab. 
-		return orig_slab
+		return (orig_slab, 0)
 		
 
 	else: #Suppose you have specified a proper number of layers to  be amorphized. They shall be amorphized from the end region.
@@ -198,7 +200,7 @@ def scale_amorphous_region(orig_slab, orig_oriented_unit_cell, percentage_amorph
 
 
 	
-		return new_slab
+		return (new_slab, n_amorphous_sites)
 
 
 
@@ -266,12 +268,28 @@ def generate_hybrid_slab(percent_amorphized, volume_scale_factor, supercell_para
 	supercell_matl_slab_unit_cell.make_supercell(supercell_params)
 
 	#Amorphize the slab and set selective dynamics.
-	hybrid_matl_slab = scale_amorphous_region(supercell_matl_slab, supercell_matl_slab_unit_cell, percent_amorphized, volume_scale_factor, debug=True)
+	(hybrid_matl_slab, n_amorph_sites) = scale_amorphous_region(supercell_matl_slab, supercell_matl_slab_unit_cell, percent_amorphized, volume_scale_factor, debug=False)
 
 
 	hybrid_matl_slab_sd_poscar = set_selective_dynamics(supercell_matl_slab_unit_cell, hybrid_matl_slab, percent_amorphized)
 
-	return hybrid_matl_slab_sd_poscar
+
+	struct = hybrid_matl_slab_sd_poscar.structure
+
+	Hybrid_Slab = HybridSlab(orig_slab.miller_index, 
+supercell_matl_slab_unit_cell, 
+volume_scale_factor,  #WHY IS THIS ARGUMENT ASSIGNED AS TUPLE???
+n_amorph_sites,
+struct.num_sites - n_amorph_sites,
+struct.lattice,
+struct.species,
+struct.frac_coords,
+struct.charge,
+struct.site_properties)
+
+	return Hybrid_Slab, hybrid_matl_slab_sd_poscar
+
+#	return hybrid_matl_slab_sd_poscar
 
 
 if __name__ == "__main__":
