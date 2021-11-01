@@ -22,9 +22,14 @@ def scale_amorphous_region(orig_slab, orig_oriented_unit_cell, percentage_amorph
 
 	#Determine how many layers the slab has.This is done by looking at how many atoms are in the same c-coordinate position...
 	c_coord = orig_slab.frac_coords[0, 2] #First fractional c-coordinate in the structure.
+	
 	natoms_per_layer = len(orig_slab.frac_coords[orig_slab.frac_coords[:, 2] == c_coord])
 	nlayers = orig_slab.num_sites / natoms_per_layer	
 	
+
+	if debug:
+		print("natoms per layer: " + str(natoms_per_layer))
+		print("nlayers: " + str(nlayers))
 
 	#First, some basic bookkeeping checks. Make sure that number of layers specified is not greater than layers in slab.
 	
@@ -57,11 +62,13 @@ def scale_amorphous_region(orig_slab, orig_oriented_unit_cell, percentage_amorph
                 #All of our transforms occur on the c axis, so we'll store the c-vectors and their lengths directly, to minimize function calls later.
 		unit_c_vector = unit_lattice_matrix[2]
 		unit_c_vector_len = np.linalg.norm(unit_c_vector) 
-#create new lattice vector that is equal to n-unit cells stacked together on c-axis.
+#create new lattice vector that is equal to n-unit cells stacked together on c-axis.n is determined by comparison of atoms in unit cell to atoms total in the structure.
 
 		nonvac_lattice_matrix = unit_lattice_matrix.copy()
+	
+		nonvac_lattice_matrix[2] = (orig_slab.num_sites/orig_oriented_unit_cell.num_sites) * unit_c_vector
 
-		nonvac_lattice_matrix[2] = nlayers * unit_c_vector
+		#nonvac_lattice_matrix[2] = nlayers * unit_c_vector
 
 		nonvac_c_vector = nonvac_lattice_matrix[2]
 		nonvac_c_vector_len = np.linalg.norm(nonvac_c_vector)
@@ -102,7 +109,9 @@ def scale_amorphous_region(orig_slab, orig_oriented_unit_cell, percentage_amorph
 
 
 		#Identify the amorphous and crystalline regions.
-		amorphous_region_length = n_amorph_layers * unit_c_vector_len
+		
+		#amorphous_region_length = n_amorph_layers * unit_c_vector_len
+		amorphous_region_length = (n_amorph_layers/nlayers) * nonvac_c_vector_len
 
 		crystalline_region_length = nonvac_c_vector_len - amorphous_region_length
 
@@ -257,10 +266,10 @@ def generate_hybrid_slab(percent_amorphized, volume_scale_factor, supercell_para
 	supercell_matl_slab_unit_cell.make_supercell(supercell_params)
 
 	#Amorphize the slab and set selective dynamics.
-	hybrid_matl_slab = scale_amorphous_region(supercell_matl_slab, supercell_matl_slab_unit_cell, percent_amorphized, volume_scale_factor)
+	hybrid_matl_slab = scale_amorphous_region(supercell_matl_slab, supercell_matl_slab_unit_cell, percent_amorphized, volume_scale_factor, debug=True)
 
 
-	hybrid_matl_slab_sd_poscar = set_selective_dynamics(supercell_matl_slab_unit_cell, hybrid_matl_slab, fraction_amorph)
+	hybrid_matl_slab_sd_poscar = set_selective_dynamics(supercell_matl_slab_unit_cell, hybrid_matl_slab, percent_amorphized)
 
 	return hybrid_matl_slab_sd_poscar
 

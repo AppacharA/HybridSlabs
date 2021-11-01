@@ -6,7 +6,7 @@ from collections import OrderedDict
 from pymatgen.core import Structure
 
 
-def packmol_gen_parallelipiped_random_packing(nlayers, natoms_per_layer, oriented_unit_cell, scale_factor, cleanup=True):
+def packmol_gen_parallelipiped_random_packing(nlayers, natoms_per_layer, oriented_unit_cell, scale_factor, c_tolerance=None, cleanup=True):
 	#Take in as input the number of layers, the original unit cell, and the scaled c-length of the amorphous region.
 	#Return a random packed Pymatgen Structure.
 
@@ -42,17 +42,7 @@ def packmol_gen_parallelipiped_random_packing(nlayers, natoms_per_layer, oriente
 	
 	basis_planes = np.cross(left_hand_side, right_hand_side) #Gives planes ab, ac, bc
 
-	nonzero_dot_products = -1 * (basis_planes * np.array([scaled_c_vec, unit_b_vec, unit_a_vec])).sum(axis=1) #Multiply by -1 to account for eventual flipping of normals?
-	print(nonzero_dot_products)
 	#This gives planes spanned, respectively, by a&b, a&c, b&c. All three plane normals point into the box. 
-	basis_planes = np.cross(left_hand_side, right_hand_side)
-
-	#Of the six boundary planes, 3 of them intersect the origin. Therefore their l values (calculated via dot product) will be zero. We need to calculate the dot products of the other 3 planes.
-       
-	#We additionally multiply by -1 in order to orient the plane normals to point into the box.
-
-	#This gives planes spanned, respectively, by a&b, a&c, b&c. All three plane normals point into the box. 
-	basis_planes = np.cross(left_hand_side, right_hand_side)
 
 	#Of the six boundary planes, 3 of them intersect the origin. Therefore their l values (calculated via dot product) will be zero. We need to calculate the dot products of the other 3 planes.
        
@@ -68,64 +58,27 @@ def packmol_gen_parallelipiped_random_packing(nlayers, natoms_per_layer, oriente
 	boundary_planes[3:, :3] = -1 * basis_planes
 	boundary_planes[3:, 3] = nonzero_dot_products
 
-#	print(boundary_planes)
-#	####################
-#    
-#	plane_ab1 = np.zeros(4) #The plane spanned by vectors a & b. Start with [0,0,0,0]
-#	
-#	#<ijk> is vector normal to plane. Get i,j,k from cross product.We cross a x b such that vector extends along c axis.
-#	plane_ab1[:3] = np.cross(unit_a_vec, unit_b_vec)
-#
-#	#L is given by dot producting <ijk> with point in plane. AB1 contains point (0,0,0), so L is simply zero. No change is necessary.
-#	 
-#	
-#	#Next, AB2
-#	plane_ab2 = np.zeros(4)
-#	
-#	#AB2 is parallel to AB1. We flip the orientation such that AB2 'faces' AB1 (surface normals point to each other)
-#	plane_ab2[:3] = -1 * plane_ab1[:3]
-#
-#	#AB2 contains point c given by scaled c vector from origin. 
-#	plane_ab2[3] = np.dot(plane_ab2[:3], scaled_c_vec)
-#
-#
-#	#Rinse and repeat for AC, BC
-#
-#	plane_ac1 = np.zeros(4)
-#	plane_ac1[:3] = np.cross(unit_c_vec, unit_a_vec) #c x a, such that vector extends along b axis.
-#
-#	plane_ac2 = np.zeros(4)
-#	plane_ac2[:3] = -1 * plane_ac1[:3]
-#	plane_ac2[3] = np.dot(plane_ac2[:3], unit_b_vec)
-#
-#	plane_bc1 = np.zeros(4)
-#	plane_bc1[:3] = np.cross(unit_b_vec, unit_c_vec) #b x c, such taht vector extends along a axis.
-#
-#	plane_bc2 = np.zeros(4)
-#	plane_bc2[:3] = -1 * plane_bc1[:3] 
-#	plane_bc2[3] = np.dot(plane_bc2[:3], unit_a_vec)
-#
-#
-#	#Compile all planes into a list. 
-#	
-#	planes = [plane_ab1, plane_ab2, plane_ac2, plane_ac1, plane_bc1, plane_bc2]
-#
-#	print(planes)
+
+	if c_tolerance:
+
+		#Finally, realize that there is a possibility that the atoms will be packed into the 0th c-coordinate of the box, which would result in atoms being right next to one another once we recombine the amorphous and the crystalline portions. So, we will shift the AB plane slightly (by 2 angstroms) to avoid this.....
+
+		#First, we calculate a vector in the c-direction with magnitude matching the specified tolerance.
+		tolerance_c_vec =  (c_tolerance / (np.linalg.norm(unit_c_vec))) * unit_c_vec
 
 
+		#ix + jy + kz = l
+		#ix + jy + 
 
-	boundary_planes[:3, :3] = basis_planes
-	boundary_planes[3:, :3] = -1 * basis_planes
-	boundary_planes[3:, 3] = nonzero_dot_products
+		pbc_dot_product = basis_planes[0, :3] * tolerance_c_vec
+
+		#Then set the dot products.
+		boundary_planes[0, 3]+=pbc_dot_product
+
+		boundary_planes[3, 3]-=pbc_dot_product
 
     
-	#Now, we must write the lines for the packmol file to read.
-
-	boundary_planes[:3, :3] = basis_planes
-	boundary_planes[3:, :3] = -1 * basis_planes
-	boundary_planes[3:, 3] = nonzero_dot_products
-
-    
+	#Now, we must write the lines for the packmol file to read.    
 
 	lines = []
 
