@@ -6,8 +6,9 @@ from collections import OrderedDict
 from pymatgen.core import Structure
 
 
-def packmol_gen_parallelipiped_random_packing(nlayers, natoms_per_layer, oriented_unit_cell, scale_factor, c_tolerance=None, cleanup=True):
+def packmol_gen_parallelipiped_random_packing(nlayers, natoms_per_layer, oriented_unit_cell, scale_factor, overall_tolerance=2.0, c_tolerance=None, ab_tolerance=1.0, cleanup=True):
 	#Take in as input the number of layers, the original unit cell, and the scaled c-length of the amorphous region.
+	#An optional c-tolerance may be specified (in angstroms)...
 	#Return a random packed Pymatgen Structure.
 
 	#First, we must generate a species file for Packmol to pack. 
@@ -70,20 +71,45 @@ def packmol_gen_parallelipiped_random_packing(nlayers, natoms_per_layer, oriente
 		#ix + jy + kz = l
 		#ix + jy + 
 
-		pbc_dot_product = basis_planes[0, :3] * tolerance_c_vec
+		pbc_dot_product = (basis_planes[0, :3] * tolerance_c_vec).sum()
 
 		#Then set the dot products.
-		boundary_planes[0, 3]+=pbc_dot_product
+		boundary_planes[[0,3], 3]+=pbc_dot_product
 
-		boundary_planes[3, 3]-=pbc_dot_product
 
+	if ab_tolerance:
+
+		#Finally, realize that there is a possibility that the atoms will be packed into the 0th c-coordinate of the box, which would result in atoms being right next to one another once we recombine the amorphous and the crystalline portions. So, we will shift the AB plane slightly (by 2 angstroms) to avoid this.....
+
+		#First, we calculate a vector in the c-direction with magnitude matching the specified tolerance.
+		tolerance_a_vec =  (ab_tolerance / (np.linalg.norm(unit_a_vec))) * unit_a_vec
+
+		tolerance_b_vec = (ab_tolerance / (np.linalg.norm(unit_b_vec))) * unit_b_vec
+
+
+		#ix + jy + kz = l
+		#ix + jy + 
+
+		a_pbc_dot_product = (basis_planes[2, :3] * tolerance_a_vec).sum()
+
+		b_pbc_dot_product = (basis_planes[1, :3] * tolerance_b_vec).sum()
+		
+		#Then set the dot products.
+
+		boundary_planes[[2,5], 3]+=a_pbc_dot_product
+
+		boundary_planes[[1,4], 3]+=b_pbc_dot_product
     
 	#Now, we must write the lines for the packmol file to read.    
 
 	lines = []
 
+	#initialize using random seed from computer time.
+	lines.append("seed -1" + "\n")
+
+
 	#Add tolerance. This is distance between different materials (not elements! materials).
-	lines.append("tolerance 2.0" + "\n")
+	lines.append("tolerance " + str(overall_tolerance) + "\n")
 
 	formula = oriented_unit_cell.formula
 
@@ -128,8 +154,7 @@ def packmol_gen_parallelipiped_random_packing(nlayers, natoms_per_layer, oriente
 			
 			lines.append(line)
 							 
-
-
+		
 		lines.append("end structure" + "\n")
 
 

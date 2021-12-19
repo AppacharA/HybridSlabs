@@ -16,7 +16,7 @@ from math import floor
 import os
 from pathlib import Path
 
-def scale_amorphous_region(orig_slab, orig_oriented_unit_cell, percentage_amorphized, scale_factor, debug=False):#Take in as arguments the original slab structure, and the amount to amorphize, and the scaling factor. 
+def scale_amorphous_region(orig_slab, orig_oriented_unit_cell, percentage_amorphized, scale_factor, overall_tolerance=2.0, c_tolerance=None, debug=False):#Take in as arguments the original slab structure, and the amount to amorphize, and the scaling factor. 
 #Return a Structure representing a hybrid slab.
 	
 	#Orig_slab and orig_oriented_unit_cell are passed in separately. This is to allow for compatibility with structures that are not Pymatgen Slab objects, e.g.
@@ -143,7 +143,7 @@ def scale_amorphous_region(orig_slab, orig_oriented_unit_cell, percentage_amorph
 
 		#Using packmol, get random packed structure of amorphous atoms.
 
-		amorph_struct = packmol_gen_parallelipiped_random_packing(n_amorph_layers, natoms_per_layer, orig_oriented_unit_cell, scale_factor, cleanup=not debug)
+		amorph_struct = packmol_gen_parallelipiped_random_packing(n_amorph_layers, natoms_per_layer, orig_oriented_unit_cell, scale_factor, overall_tolerance=overall_tolerance, c_tolerance=c_tolerance, cleanup=not debug)
 		#Extract frac coords of amorphous structure. These are fractional in relation to scale_factor * original_amorphous_length
 		amorph_frac_coords = amorph_struct.frac_coords
 
@@ -268,26 +268,50 @@ def generate_hybrid_slab(percent_amorphized, volume_scale_factor, supercell_para
 	supercell_matl_slab_unit_cell.make_supercell(supercell_params)
 
 	#Amorphize the slab and set selective dynamics.
-	(hybrid_matl_slab, n_amorph_sites) = scale_amorphous_region(supercell_matl_slab, supercell_matl_slab_unit_cell, percent_amorphized, volume_scale_factor, debug=False)
+	(hybrid_matl_slab, n_amorph_sites) = scale_amorphous_region(supercell_matl_slab, supercell_matl_slab_unit_cell, percent_amorphized, volume_scale_factor, debug=False, c_tolerance=2.0)
 
 
 	hybrid_matl_slab_sd_poscar = set_selective_dynamics(supercell_matl_slab_unit_cell, hybrid_matl_slab, percent_amorphized)
 
-
+	
 	struct = hybrid_matl_slab_sd_poscar.structure
 
-	Hybrid_Slab = HybridSlab(orig_slab.miller_index, 
-supercell_matl_slab_unit_cell, 
-volume_scale_factor,  #WHY IS THIS ARGUMENT ASSIGNED AS TUPLE???
-n_amorph_sites,
-struct.num_sites - n_amorph_sites,
-struct.lattice,
-struct.species,
-struct.frac_coords,
-struct.charge,
-struct.site_properties)
+	hybrid_matl_slab_sd_poscar.write_file(f"{struct.composition.reduced_formula}_21AngstromSlab_test.vasp")
+		
+		
+	#one final check.
+	if struct.is_valid(tol=0.8): #Pymatgen's default is 0.5, but that almost definitely generates problems, so we're raising the bar here.
 
-	return Hybrid_Slab, hybrid_matl_slab_sd_poscar
+	
+		Hybrid_Slab = HybridSlab(orig_slab.miller_index, 
+	supercell_matl_slab_unit_cell, 
+	volume_scale_factor,  #WHY IS THIS ARGUMENT ASSIGNED AS TUPLE???
+	n_amorph_sites,
+	struct.num_sites - n_amorph_sites,
+	struct.lattice,
+	struct.species,
+	struct.frac_coords,
+	struct.charge,
+	struct.site_properties,
+	)
+
+		#If all goes well and the structure is initialized, then print out the solution.
+
+		all_dists = struct.distance_matrix[np.triu_indices(len(struct), 1)]
+
+		shortest_dists = np.sort(all_dists)[:10]
+
+		print("A feasible packing was found at overall tolerance {}A. The shortest distances between atoms are now {}. If you're seeing distances less than 1A, consider repacking the slab with different parameters, as shorter distances usually lead to major issues in AIMD down the line.".format(tolerance, loop, shortest_dists))
+
+		return Hybrid_Slab, hybrid_matl_slab_sd_poscar
+
+	else:
+		
+		all_dists = struct.distance_matrix[np.triu_indices(len(struct), 1)]
+
+		shortest_dists = np.sort(all_dists)[:10]
+
+		print("A feasible packing was not found at tolerance {}A: The shortest distances between atoms are now {}. Consider adjusting your hybrid slab parameters: atomic distances less than 1A can lead to major VASP issues during amorphization.".format(tolerance, shortest_dists))
 
 #	return hybrid_matl_slab_sd_poscar
 
