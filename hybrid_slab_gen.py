@@ -277,31 +277,39 @@ def generate_hybrid_slab(percent_amorphized, volume_scale_factor, supercell_para
 	struct = hybrid_matl_slab_sd_poscar.structure
 
 	hybrid_matl_slab_sd_poscar.write_file(f"{struct.composition.reduced_formula}_21AngstromSlab_test.vasp")
+
+
+	#Calculate the distance between the neighbors...(this accounts by default for PBC....)
 		
+	all_dists = struct.distance_matrix[np.triu_indices(len(struct), 1)]
+
+	shortest_dists = np.sort(all_dists)[:10]
 		
 	#one final check.
 	if struct.is_valid(tol=0.8): #Pymatgen's default is 0.5, but that almost definitely generates problems, so we're raising the bar here.
 
 	
 		Hybrid_Slab = HybridSlab(orig_slab.miller_index, 
-	supercell_matl_slab_unit_cell, 
-	volume_scale_factor,  #WHY IS THIS ARGUMENT ASSIGNED AS TUPLE???
-	n_amorph_sites,
-	struct.num_sites - n_amorph_sites,
-	struct.lattice,
-	struct.species,
-	struct.frac_coords,
-	struct.charge,
-	struct.site_properties,
-	)
+		supercell_matl_slab_unit_cell, 
+		volume_scale_factor,  #WHY IS THIS ARGUMENT ASSIGNED AS TUPLE???
+		n_amorph_sites,
+		struct.num_sites - n_amorph_sites,
+		struct.lattice,
+		struct.species,
+		struct.frac_coords,
+		struct.charge,
+		struct.site_properties,
+		)
 
 		#If all goes well and the structure is initialized, then print out the solution.
 
-		all_dists = struct.distance_matrix[np.triu_indices(len(struct), 1)]
 
-		shortest_dists = np.sort(all_dists)[:10]
 
-		print("A feasible packing was found at overall tolerance {}A. The shortest distances between atoms are now {}. If you're seeing distances less than 1A, consider repacking the slab with different parameters, as shorter distances usually lead to major issues in AIMD down the line.".format(tolerance, loop, shortest_dists))
+		print("A feasible packing was found at overall tolerance {}A.".format(tolerance))
+
+		if np.any(shortest_dists <= 1):
+ 
+			warnings.warn("Some atoms are less than 1A away from each other: The ten shortest distances between atoms are now {}. This may lead to issues during amorphization. Consider repacking the slab with different parameters.".format(tolerance, loop, shortest_dists))
 
 		return Hybrid_Slab, hybrid_matl_slab_sd_poscar
 
