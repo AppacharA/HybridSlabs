@@ -245,12 +245,18 @@ def set_selective_dynamics(unit_cell, slab, percentage_amorphized): #A method to
 	return poscar
 
 
-def generate_hybrid_slab(percent_amorphized, volume_scale_factor, supercell_params=[1,1,1], *args, **kwargs):
+def generate_hybrid_slab(percent_amorphized, volume_scale_factor, supercell_params=[1,1,1], amorphous_matl_unit_cell=None, slabgen_args=None):
 	#Helper function to create hybrid slab with desired selective dynamics flags.
 	#Returns a Pymatgen POSCAR Object.
 	#Takes in as input a percentage amorphization, and then the standard set of arguments to generate a slab through Pymatgen's preexisting functions.
 
-	slabgen = SlabGenerator(*args, **kwargs)
+	if not slabgen_args:
+		raise ValueError("No arguments provided for slab generator.")
+	
+	
+	#slabgen = SlabGenerator(*args, **kwargs)
+
+	slabgen = SlabGenerator(**slabgen_args)
 
 	all_slabs = slabgen.get_slabs()
 
@@ -267,6 +273,25 @@ def generate_hybrid_slab(percent_amorphized, volume_scale_factor, supercell_para
 
 	supercell_matl_slab_unit_cell.make_supercell(supercell_params)
 
+	#If the amorphous matl is explicitly specified, this is a multicomposition slab, so we need to do some preprocessing.
+	if amorphous_matl_unit_cell:
+		cryst_matl_unit_cell = slabgen_args['initial_structure']
+
+		cryst_atomic_vol = (cryst_matl_unit_cell.volume / cryst_matl_unit_cell.num_sites)
+
+		amorph_atomic_vol = (amorphous_matl_unit_cell.volume/amorphous_matl_unit_cell.num_sites)
+	
+		#We identify how much the volume differs b/w the two materials, and incorporate it into the final volume expansion factor.
+		atomic_vol_ratios =  (amorph_atomic_vol/cryst_atomic_vol)
+		
+		volume_scale_factor = volume_scale_factor * atomic_vol_ratios
+
+
+
+
+
+
+
 	#Amorphize the slab and set selective dynamics.
 	(hybrid_matl_slab, n_amorph_sites) = scale_amorphous_region(supercell_matl_slab, supercell_matl_slab_unit_cell, percent_amorphized, volume_scale_factor, debug=False, c_tolerance=2.0)
 
@@ -276,7 +301,21 @@ def generate_hybrid_slab(percent_amorphized, volume_scale_factor, supercell_para
 	
 	struct = hybrid_matl_slab_sd_poscar.structure
 
-	hybrid_matl_slab_sd_poscar.write_file(f"{struct.composition.reduced_formula}_21AngstromSlab_test.vasp")
+	
+	if amorphous_matl_unit_cell:
+		#Finally, adjust the species in the amorphous region to match the liquid matl species.
+
+		#Assuming single component material...
+		amorph_species = amorphous_matl_unit_cell.species[0]
+		
+		for i in range(n_amorph_sites):
+	
+			#we replace sites from the "back" of the molecule, since that is where the amorphous region is.
+			struct.replace(-1 * (i+1), amorph_species)
+
+
+
+	#hybrid_matl_slab_sd_poscar.write_file(f"{struct.composition.reduced_formula}_21AngstromSlab_test.vasp")
 
 
 	#Calculate the distance between the neighbors...(this accounts by default for PBC....)
@@ -301,15 +340,15 @@ def generate_hybrid_slab(percent_amorphized, volume_scale_factor, supercell_para
 		struct.site_properties,
 		)
 
+		tolerance = 2.0
 		#If all goes well and the structure is initialized, then print out the solution.
-
-
-
 		print("A feasible packing was found at overall tolerance {}A.".format(tolerance))
 
 		if np.any(shortest_dists <= 1):
  
-			warnings.warn("Some atoms are less than 1A away from each other: The ten shortest distances between atoms are now {}. This may lead to issues during amorphization. Consider repacking the slab with different parameters.".format(tolerance, loop, shortest_dists))
+			warnings.warn("Some atoms are less than 1A away from each other: The ten shortest distances between atoms are now {}. This may lead to issues during amorphization. Consider repacking the slab with different parameters.".format(shortest_dists))
+
+		hybrid_matl_slab_sd_poscar = Poscar.from_string(Hybrid_Slab.to("poscar"))
 
 		return Hybrid_Slab, hybrid_matl_slab_sd_poscar
 
@@ -321,7 +360,11 @@ def generate_hybrid_slab(percent_amorphized, volume_scale_factor, supercell_para
 
 		print("A feasible packing was not found at tolerance {}A: The shortest distances between atoms are now {}. Consider adjusting your hybrid slab parameters: atomic distances less than 1A can lead to major VASP issues during amorphization.".format(tolerance, shortest_dists))
 
-#	return hybrid_matl_slab_sd_poscar
+
+
+
+	
+
 
 
 if __name__ == "__main__":
@@ -334,91 +377,58 @@ if __name__ == "__main__":
 	#for matl in unit_cells:
 	#	
 	#	#Obtain a slab with 10 unit cell layers and 1 layer of vacuum, oriented in (111).
-
-
 	#	slabgen001 = SlabGenerator(matl[1], (0, 0, 1), 10, 1, in_unit_planes = True, max_normal_search = 4)
 
 
-	#	all_slabs001 = slabgen001.get_slabs()
-
-	#	
-
-
-	#	orig_slab_001 = all_slabs001[0]
-
-	#
-
-	#	#Now, we will make supercell of this slab, and of its unitcell.
-	#	
-	#	supercell_slab = orig_slab_001.copy()
-	#	supercell_slab.make_supercell([3,3,1])
-
-	#	unit_supercell = orig_slab_001.oriented_unit_cell.copy()
-	#	unit_supercell.make_supercell([3,3,1])	
-
-
-	#	#Next, modify slab. Amorphize 5 layers.
-	#	scaled_supercell001 = scale_amorphous_region(supercell_slab, unit_supercell, 2.5, 1.0442)
-
-	#	#Finally, set selective dynamics.
-	#	sd_poscar = set_selective_dynamics(unit_supercell, scaled_supercell001, 2.5)
-
-
-	#			
-	#	scaled_supercell = (matl[0] + "_001", scaled_supercell001)
-
-	#
-	#	scaled_supercell[1].to("poscar", filename = scaled_supercell[0] + "_scaled_supercell_POSCAR_parallelogram.vasp")
-
-	#	sd_poscar.write_file(scaled_supercell[0] + "_scaled_supercell_POSCAR_parallelogram_SD.vasp")
 
 
 
 	#Running a test case with Nickel....
 	orientation = (1, 1, 1)
-	thickness = 14 #Thickness in angstroms.
-	fraction_amorph = 0.5 #Proportion of slab you are amorphizing...
+	thickness = 21 #Thickness in angstroms.
+	fraction_amorph = 0.33 #Proportion of slab you are amorphizing...
 	volume_scale_factor = 1.1435 #molten density 7790kg/m3, solid density 8908kg/m3
 
 	#First, we retrieve the structure.
 	with MPRester() as m:
 		base_matl = m.get_structure_by_material_id("mp-23")
 
+
 	
-	hybrid_Ni_slab = generate_hybrid_slab(fraction_amorph, volume_scale_factor, [3,3,1], base_matl, orientation, thickness, 1, max_normal_search=1)
-
-
-
-	#Then, generate the slab using Pymatgen's builtin functionality.
-	#slabgen = SlabGenerator(base_matl, orientation, thickness, 1, max_normal_search = 1)
-
-	#all_slabs = slabgen.get_slabs()
-
-	#orig_slab = all_slabs[0]
-
-	#supercell_matl_slab = orig_slab.copy()
-
-
-	#supercell_matl_slab_unit_cell = orig_slab.oriented_unit_cell.copy()
-
-	##Make supercell of the slab and its unit cell.
-	#supercell_matl_slab.make_supercell([3,3,1])
-
-	#supercell_matl_slab_unit_cell.make_supercell([3,3,1])
-
-	#print(supercell_matl_slab)
-	#print(supercell_matl_slab_unit_cell)
-
-	##Amorphize the slab and set selective dynamics.
-	#hybrid_matl_slab = scale_amorphous_region(supercell_matl_slab, supercell_matl_slab_unit_cell, fraction_amorph, volume_scale_factor, debug=False)
-
-
-	#sd_poscar = set_selective_dynamics(supercell_matl_slab_unit_cell, hybrid_matl_slab, fraction_amorph)
-
-	#Write the poscar file, read back in the structure.
-	filename = base_matl.formula + "poscar_SD.vasp_thickness"
-
-	rootdir = Path(os.getcwd())
-
-	hybrid_Ni_slab.write_file(rootdir/"NiHybridSlab"/filename)
 	
+	slabgen_args = {"initial_structure":base_matl, "miller_index":orientation, "min_slab_size":thickness, "min_vacuum_size":1, "max_normal_search":1}
+	
+	hybrid_Ni_slab, hybrid_Ni_slab_poscar = generate_hybrid_slab(fraction_amorph, volume_scale_factor, [3,3,1], slabgen_args=slabgen_args)
+
+
+
+	
+	hybrid_Ni_slab_poscar.write_file(f"{hybrid_Ni_slab.composition.reduced_formula}_{thickness}AngstromSlab_test.vasp")
+
+	#Another test case, this time with multi composition slab.	
+
+	with MPRester() as m:
+
+		Sodium = m.get_structure_by_material_id("mp-127")
+		Nickel = m.get_structure_by_material_id("mp-23")
+
+
+	hybrid_NaNi_slab, hybrid_NaNi_slab_poscar = generate_hybrid_slab(fraction_amorph, volume_scale_factor, [3,3,1], amorphous_matl_unit_cell=Sodium, slabgen_args=slabgen_args)
+
+
+
+
+	hybrid_NaNi_slab_poscar.write_file(f"{hybrid_NaNi_slab.composition.reduced_formula}_{thickness}AngstromSlab_test.vasp")
+
+
+#Flip it as well..?
+	
+	slabgen_args.update({"initial_structure":Sodium})
+	
+	hybrid_NaNi_slab, hybrid_NaNi_slab_poscar = generate_hybrid_slab(fraction_amorph, volume_scale_factor, [3,3,1], amorphous_matl_unit_cell=Nickel, slabgen_args=slabgen_args)
+
+	
+
+
+	hybrid_NaNi_slab_poscar.write_file(f"{hybrid_NaNi_slab.composition.reduced_formula}_{thickness}AngstromSlab_test.vasp")
+
