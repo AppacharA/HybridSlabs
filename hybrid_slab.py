@@ -1,5 +1,5 @@
 from pymatgen.core.structure import Structure
-
+import numpy as np
 
 
 #A Python Class representing the hybrid slab. It will extend the standard Pymatgen Structure class.
@@ -61,4 +61,50 @@ class HybridSlab(Structure):
 		site_properties=site_properties
 
 	)
-			
+	
+
+	
+		#Do some sanity checks..
+
+		all_dists = self.distance_matrix[np.triu_indices(len(self), 1)]
+
+		shortest_dists = np.sort(all_dists)[:10]
+
+
+		if np.any(shortest_dists <= 0.85): #This was the lowest limit we found before slabs consistently started to fail amorphization more often than not.
+
+			raise ValueError("Atoms are too close to each other for proper amorphization.")
+
+		elif np.any(shortest_dists <= 1):
+	
+ 
+			warnings.warn("Some atoms are less than 1A away from each other: The ten shortest distances between atoms are now {}. This may lead to issues during amorphization. Consider repacking the slab with different parameters.".format(shortest_dists))
+
+
+		#If it passes tolerance check, we do a sanity check on the selective dynamics.
+
+		selective_dynamics = site_properties.get("selective_dynamics", None)
+
+		if not selective_dynamics:
+			raise ValueError("No selective dynamics set on Hybrid Slab. Aborting structure creation.")
+
+		else:
+
+			sd_flags = np.asarray(selective_dynamics)
+
+			if np.all(sd_flags):
+
+				warnings.warn("All atoms are set to mobile. Perhaps your amorphization region was set to cover the whole slab?")
+
+			elif np.all(sd_flags == False):
+		
+				warnings.warn("All atoms are set to be immobile. Did you specify an amorphization region?") 	
+
+	
+#		hybrid_matl_slab_sd_poscar = Poscar.from_string(Hybrid_Slab.to("poscar"))
+#
+#		return Hybrid_Slab, hybrid_matl_slab_sd_poscar
+	#	print("A feasible packing was not found at tolerance {}A: The shortest distances between atoms are now {}. Consider adjusting your hybrid slab parameters: atomic distances less than 1A can lead to major VASP issues during amorphization.".format(tolerance, shortest_dists))
+		
+		#If all goes well and the structure is initialized, then print out the solution.
+	#	print("A feasible packing was found at overall tolerance {}A.".format(tolerance))
