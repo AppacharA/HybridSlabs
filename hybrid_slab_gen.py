@@ -243,7 +243,7 @@ def set_selective_dynamics(unit_cell, slab, percentage_amorphized): #A method to
 	return sd_slab
 
 
-def generate_hybrid_slab(percent_amorphized, volume_scale_factor, supercell_params=[1,1,1], amorphous_matl_unit_cell=None, slabgen_args=None):
+def generate_hybrid_slab(percent_amorphized, volume_scale_factor, supercell_params=[1,1,1], amorphous_matl_unit_cell=None, slabgen_args=None, debug=False):
 	#Helper function to create hybrid slab with desired selective dynamics flags.
 	#Returns a Pymatgen POSCAR Object.
 	#Takes in as input a percentage amorphization, and then the standard set of arguments to generate a slab through Pymatgen's preexisting functions.
@@ -291,10 +291,34 @@ def generate_hybrid_slab(percent_amorphized, volume_scale_factor, supercell_para
 
 
 	#Amorphize the slab and set selective dynamics.
-	(hybrid_matl_slab, n_amorph_sites) = scale_amorphous_region(supercell_matl_slab, supercell_matl_slab_unit_cell, percent_amorphized, volume_scale_factor, debug=False, c_tolerance=2.0)
+	(hybrid_matl_slab, n_amorph_sites) = scale_amorphous_region(supercell_matl_slab, supercell_matl_slab_unit_cell, percent_amorphized, volume_scale_factor, debug=debug, c_tolerance=2.0)
 
 
 	struct = set_selective_dynamics(supercell_matl_slab_unit_cell, hybrid_matl_slab, percent_amorphized)
+
+
+	#Finally, adjust the species in the amorphous region to match the liquid matl species.
+	if amorphous_matl_unit_cell:
+
+		#Assuming single component material...
+		amorph_species = amorphous_matl_unit_cell.species[0]
+
+		heterogen_site_properties = struct.site_properties
+	
+			
+		for i in range(n_amorph_sites):
+	
+			#we replace sites from the "back" of the molecule, since that is where the amorphous region is.
+			struct.replace(-1 * (i+1), amorph_species)
+
+
+
+			#We must also update the site properties....
+			heterogen_site_properties['selective_dynamics'][-1 * (i+1)]=[True, True, True]	
+
+
+		#Copy over the new structure.
+		struct = struct.copy(site_properties = heterogen_site_properties)	
 
 
 	Hybrid_Slab = HybridSlab(orig_slab.miller_index, 
@@ -309,20 +333,9 @@ def generate_hybrid_slab(percent_amorphized, volume_scale_factor, supercell_para
 	site_properties = struct.site_properties,
 	)
 
+	print(Hybrid_Slab.site_properties)
 
-	#Finally, adjust the species in the amorphous region to match the liquid matl species.
-	if amorphous_matl_unit_cell:
-
-		#Assuming single component material...
-		amorph_species = amorphous_matl_unit_cell.species[0]
-		
-		for i in range(n_amorph_sites):
-	
-			#we replace sites from the "back" of the molecule, since that is where the amorphous region is.
-			struct.replace(-1 * (i+1), amorph_species)
-
-
-	return Hybrid_Slab
+	return Hybrid_Slab, Poscar(Hybrid_Slab)
 
 
 if __name__ == "__main__":
@@ -349,19 +362,19 @@ if __name__ == "__main__":
 
 	#First, we retrieve the structure.
 	with MPRester() as m:
-		base_matl = m.get_structure_by_material_id("mp-23")
+		base_matl = m.get_structure_by_material_id("mp-81")
 
 
 	
 	
 	slabgen_args = {"initial_structure":base_matl, "miller_index":orientation, "min_slab_size":thickness, "min_vacuum_size":1, "max_normal_search":1}
 	
-	hybrid_Ni_slab = generate_hybrid_slab(fraction_amorph, volume_scale_factor, [3,3,1], slabgen_args=slabgen_args)
+	hybrid_Au_slab, sd_poscar = generate_hybrid_slab(fraction_amorph, volume_scale_factor, [3,3,1], slabgen_args=slabgen_args, debug=True)
 
 
 
 	
-	hybrid_Ni_slab.to("poscar", f"{hybrid_Ni_slab.composition.reduced_formula}_{thickness}AngstromSlab_test.vasp")
+	hybrid_Au_slab.to("poscar", f"{hybrid_Au_slab.composition.reduced_formula}_{thickness}AngstromSlab_test.vasp")
 
 	#Another test case, this time with multi composition slab.	
 
@@ -371,22 +384,21 @@ if __name__ == "__main__":
 		Nickel = m.get_structure_by_material_id("mp-23")
 
 
-	hybrid_NaNi_slab = generate_hybrid_slab(fraction_amorph, volume_scale_factor, [3,3,1], amorphous_matl_unit_cell=Sodium, slabgen_args=slabgen_args)
+	hybrid_NaNi_slab, sd_poscar = generate_hybrid_slab(fraction_amorph, volume_scale_factor, [3,3,1], amorphous_matl_unit_cell=Sodium, slabgen_args=slabgen_args)
 
 
 
-	print(hybrid_NaNi_slab.site_properties)
-
+	print("HI WE'RE HERE")
 	hybrid_NaNi_slab.to("poscar", f"{hybrid_NaNi_slab.composition.reduced_formula}_{thickness}AngstromSlab_test.vasp")
 
 
 #Flip it as well..?
+#	
+#	slabgen_args.update({"initial_structure":Sodium})
+#	
+#	hybrid_NaNi_slab = generate_hybrid_slab(fraction_amorph, 1.7, [3,3,1], amorphous_matl_unit_cell=Nickel, slabgen_args=slabgen_args)
+#
 	
-	slabgen_args.update({"initial_structure":Sodium})
-	
-	hybrid_NaNi_slab = generate_hybrid_slab(fraction_amorph, 1.7, [3,3,1], amorphous_matl_unit_cell=Nickel, slabgen_args=slabgen_args)
 
-	
-
-	hybrid_NaNi_slab.to("poscar", f"{hybrid_NaNi_slab.composition.reduced_formula}_{thickness}AngstromSlab_test.vasp")
+#	hybrid_NaNi_slab.to("poscar", f"{hybrid_NaNi_slab.composition.reduced_formula}_{thickness}AngstromSlab_test.vasp")
 
