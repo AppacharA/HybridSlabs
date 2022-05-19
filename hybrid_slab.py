@@ -1,5 +1,9 @@
+from pymatgen.core.lattice import Lattice
 from pymatgen.core.structure import Structure
+from pymatgen.core.sites import PeriodicSite
 import numpy as np
+
+import warnings
 
 
 #A Python Class representing the hybrid slab. It will extend the standard Pymatgen Structure class.
@@ -24,15 +28,14 @@ class HybridSlab(Structure):
 
 	def __init__(
 		self,
+		lattice, 
+		species, 
+		coords,
 		miller_index,
 		oriented_unit_cell,
 		amorph_vol_expansion,
 		num_amorph_sites,
 		num_crystalline_sites,
-		lattice, 
-		species, 
-		coords,
-		charge,
 		validate_proximity = False,
 		to_unit_cell = False,
 		coords_are_cartesian = False,
@@ -50,11 +53,16 @@ class HybridSlab(Structure):
 
 		self.num_crystalline_sites = num_crystalline_sites
 
+
+
+		
+
+		#Final initialization.
+
 		super().__init__(
 		lattice,
 		species,
 		coords,
-		charge,
 		validate_proximity=validate_proximity,
 		to_unit_cell=to_unit_cell,
 		coords_are_cartesian=coords_are_cartesian,
@@ -63,14 +71,11 @@ class HybridSlab(Structure):
 	)
 	
 
-	
 		#Do some sanity checks..
 
 		all_dists = self.distance_matrix[np.triu_indices(len(self), 1)]
 
 		shortest_dists = np.sort(all_dists)[:10]
-
-
 		if np.any(shortest_dists <= 0.85): #This was the lowest limit we found before slabs consistently started to fail amorphization more often than not.
 
 			raise ValueError("Atoms are too close to each other for proper amorphization.")
@@ -99,6 +104,45 @@ class HybridSlab(Structure):
 			elif np.all(sd_flags == False):
 		
 				warnings.warn("All atoms are set to be immobile. Did you specify an amorphization region?") 	
+	
+
+
+	def as_dict(self):
+		"""
+		:return: MSONAble dict
+		"""
+		d = super().as_dict()
+		d["@module"] = type(self).__module__
+		d["@class"] = type(self).__name__
+		d["oriented_unit_cell"] = self.oriented_unit_cell.as_dict()
+		d["miller_index"] = self.miller_index
+		d["amorph_vol_expansion"] = self.amorph_vol_expansion
+		d["num_amorph_sites"] = self.num_amorph_sites
+		d["num_crystalline_sites"] = self.num_crystalline_sites
+		return d
+
+	@classmethod
+	def from_dict(cls, d):
+		"""
+		:param d: dict
+		:return: Creates HybridSlab from dict.
+		"""
+		lattice = Lattice.from_dict(d["lattice"])
+		sites = [PeriodicSite.from_dict(sd, lattice) for sd in d["sites"]]
+		s = Structure.from_sites(sites)
+
+		return HybridSlab(
+		    lattice=lattice,
+		    species=s.species_and_occu,
+		    coords=s.frac_coords,
+		    miller_index=d["miller_index"],
+		    oriented_unit_cell=Structure.from_dict(d["oriented_unit_cell"]),
+		    amorph_vol_expansion = d["amorph_vol_expansion"],
+		    num_amorph_sites = d["num_amorph_sites"],
+		    num_crystalline_sites = d["num_crystalline_sites"],
+		    site_properties=s.site_properties,
+		)
+
 
 	
 #		hybrid_matl_slab_sd_poscar = Poscar.from_string(Hybrid_Slab.to("poscar"))
@@ -108,3 +152,4 @@ class HybridSlab(Structure):
 		
 		#If all goes well and the structure is initialized, then print out the solution.
 	#	print("A feasible packing was found at overall tolerance {}A.".format(tolerance))
+

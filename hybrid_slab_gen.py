@@ -321,19 +321,18 @@ def generate_hybrid_slab(percent_amorphized, volume_scale_factor, supercell_para
 		struct = struct.copy(site_properties = heterogen_site_properties)	
 
 
-	Hybrid_Slab = HybridSlab(orig_slab.miller_index, 
+	Hybrid_Slab = HybridSlab(
+	struct.lattice,
+	struct.species,
+	struct.frac_coords,
+	orig_slab.miller_index, 
 	supercell_matl_slab_unit_cell, 
 	volume_scale_factor,  #WHY IS THIS ARGUMENT ASSIGNED AS TUPLE???
 	n_amorph_sites,
 	struct.num_sites - n_amorph_sites,
-	struct.lattice,
-	struct.species,
-	struct.frac_coords,
-	struct.charge,
 	site_properties = struct.site_properties,
 	)
 
-	print(Hybrid_Slab.site_properties)
 
 	return Hybrid_Slab, Poscar(Hybrid_Slab)
 
