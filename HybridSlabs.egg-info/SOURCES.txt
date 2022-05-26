@@ -1,0 +1,9 @@
+setup.py
+HybridSlabs/__init__.py
+HybridSlabs/hybrid_slab.py
+HybridSlabs/hybrid_slab_gen.py
+HybridSlabs/packmol_parallelipiped_generator.py
+HybridSlabs.egg-info/PKG-INFO
+HybridSlabs.egg-info/SOURCES.txt
+HybridSlabs.egg-info/dependency_links.txt
+HybridSlabs.egg-info/top_level.txt
