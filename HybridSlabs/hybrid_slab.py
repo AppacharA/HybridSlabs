@@ -113,6 +113,58 @@ class HybridSlab(Structure):
 	
 
 
+
+	def extract_amorphous_region(self):
+	    #Attempts to extract the amorphous region of a hybrid slab by estimating boundaries based on selective dynamics flags.
+
+
+	    
+
+	    amorph_frac_coords = self.frac_coords[-1 * (self.num_amorph_sites): ]
+
+	    amorph_species = self.species[-1 * (num_amorph_sites):]
+
+
+	    #Identify length of amorphous region by subtracting out crystalline region.
+
+	    #Solve by finding deepest (c-coord) crystalline atom.
+	    frac_cryst_len = 0
+	    for coords in self.frac_coords[:self.num_crystalline_sites]:
+
+		if coords[2] >= frac_cryst_len:
+		    frac_cryst_len = coords[2]
+
+	    frac_amorph_len = 1 - frac_cryst_len
+	   
+	    #translate amorphous coordinates by length of crystal region..
+	    amorph_frac_coords[:, 2] -= (frac_cryst_len)
+
+	    scaling_matrix = np.array([
+			[1, 0, 0],
+			[0, 1, 0],
+			[0, 0, (1/frac_amorph_len)]
+
+			])
+	 
+
+	    amorph_frac_coords = np.matmul(amorph_frac_coords, scaling_matrix)
+
+	    #Create lattice with scaled c-vector corresponding to amorphous region length only.
+	    amorph_lattice_matrix = HybridSlab.lattice.matrix.copy()
+	    
+
+	    amorph_lattice_matrix[2] = amorph_lattice_matrix[2] * frac_amorph_len
+	    
+
+
+	    #create final structure.
+
+
+	    amorph_region = Structure(amorph_lattice_matrix, amorph_species, amorph_frac_coords )
+	    
+	    return amorph_region
+
+
 	def as_dict(self):
 		"""
 		:return: MSONAble dict
