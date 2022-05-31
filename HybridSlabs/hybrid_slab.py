@@ -150,7 +150,7 @@ class HybridSlab(Structure):
             amorph_frac_coords = np.matmul(amorph_frac_coords, scaling_matrix)
 
             #Create lattice with scaled c-vector corresponding to amorphous region length only.
-            amorph_lattice_matrix = HybridSlab.lattice.matrix.copy()
+            amorph_lattice_matrix = self.lattice.matrix.copy()
             
 
             amorph_lattice_matrix[2] = amorph_lattice_matrix[2] * frac_amorph_len
