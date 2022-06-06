@@ -1,11 +1,20 @@
 A library built on Pymatgen to generate HybridSlabs: Slabs with a solid-liquid interface.
 
 # Installation
+
+## Python installation
 This package requires pymatgen (and therefore python) to be installed. 
 
 
 1. Clone the repository to your local machine (`git clone <HTTPS-URL-HERE>`)
 2. Navigate to the folder and run `pip install -e . `
+
+## Packmol Installation
+This package also requires packmol. Please download and install packmol (found at http://leandro.iqm.unicamp.br/m3g/packmol/home.shtml)
+
+Once installed, add the following line to your bash profile:
+
+`export PACKMOL_PATH="path_to_packmol_executable_here"`
 
 # Usage
 
