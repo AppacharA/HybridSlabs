@@ -11,7 +11,7 @@ This package requires pymatgen (and therefore python) to be installed.
 
 > First you'll need to create a unit cell....
 
-` 
+```Python 
 #Create a basic structure 
 from pymatgen.core.lattice import Lattice
 from pymatgen.core.structure import Structure
@@ -21,11 +21,11 @@ Au = Structure(lattice, ["Au"],
                [[0,0,0], 
                ])
 
-`
+```
 
 > Next you'll create the hybrid slab.
 
-`
+```Python
 #Create the Hybrid Slab
 
 from HybridSlabs.hybrid_slab import HybridSlab, HybridSlabGenerator
@@ -46,4 +46,4 @@ hybrid_generator = HybridSlabGenerator(fraction_amorph, volume_scale_factor, sup
 hybrid_Au_slab = hybrid_generator.generate_hybrid_slab()
 
 
-`
+```
